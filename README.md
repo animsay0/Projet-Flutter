@@ -1,16 +1,103 @@
-# projet_flutter
+[//]: # (TODO : A completer)
 
-A new Flutter project.
+# 📱 Nom du projet Flutter
 
-## Getting Started
+## 🧾 Description du projet
 
-This project is a starting point for a Flutter application.
+Brève description de l’application :
+- Objectif principal de l’application
+- Public cible
+- Problématique à laquelle elle répond
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## ⚙️ Environnement technique
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 🧩 Versions utilisées
+
+- **Flutter** : `3.38.3`
+- **Dart** : `3.10.1`
+
+
+---
+
+## 🖥️ Écrans & fonctionnalités
+
+### 🔐 Écran 1 : Nom de l’écran (ex : Accueil / Login)
+- Description de l’écran
+- Fonctionnalités principales
+
+### 📝 Écran 2 : Nom de l’écran
+- Description
+- Actions possibles par l’utilisateur
+
+### ⚙️ Écran 3 : Nom de l’écran
+- Description
+- Fonctionnalités associées
+
+*(Ajouter autant d’écrans que nécessaire)*
+
+---
+
+## 🔌 API utilisées
+
+Liste des API utilisées dans l’application :
+
+- **Nom de l’API** : description de son rôle
+    - Exemple : récupération de données
+    - URL (si applicable)
+
+Exemples :
+- API REST (backend personnel)
+- Firebase (Auth, Firestore, Storage…)
+- API tierce (OpenWeather, Google Maps…)
+
+---
+
+## 🔑 Autorisations nécessaires (Android / iOS)
+
+Liste des permissions requises par l’application et leur justification :
+
+- **Internet** : accès aux API distantes
+- **Stockage** : sauvegarde de données locales
+- **Caméra** : prise de photos
+- **Localisation** : accès à la position de l’utilisateur
+
+> Les autorisations sont définies dans :
+> - `AndroidManifest.xml`
+> - `Info.plist`
+
+---
+
+## 📦 Dépendances principales
+
+Liste des principaux packages Flutter utilisés :
+
+- `provider` / `riverpod`
+- `http`
+- `hive` / `sqflite`
+- Autres packages utiles
+
+---
+
+## ▶️ Lancement du projet
+
+```bash
+flutter pub get
+flutter run
+```
+
+---
+
+## 👤 Auteur
+
+- ALIDOU Yasmina
+- AMAH Gaétan
+
+
+---
+
+## 📄 Licence (optionnel)
+
+Ce projet est développé dans un cadre pédagogique.
+
