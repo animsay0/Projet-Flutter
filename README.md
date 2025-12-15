@@ -1,6 +1,6 @@
 [//]: # (TODO : A completer)
 
-# 📱 Nom du projet Flutter
+# 📱Juno - Carnet de voyage
 
 ## Description du projet
 
