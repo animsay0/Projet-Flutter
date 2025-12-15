@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
 import 'trip_detail_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  // Mock data (temporaire)
-  List<Trip> get trips => [
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final List<Trip> _allTrips = [
     Trip(
       id: 1,
       title: "Randonnée Mont Blanc",
@@ -69,7 +73,7 @@ class HomeScreen extends StatelessWidget {
       date: "02/05/2024",
       imageUrl:
       "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=1080",
-      rating: 5,
+      rating: 2,
       weather: "🌞",
       temperature: "35°C",
       notes:
@@ -84,24 +88,47 @@ class HomeScreen extends StatelessWidget {
       date: "10/04/2024",
       imageUrl:
       "https://images.unsplash.com/photo-1526481280690-7ead64a0cfe8?q=80&w=1080",
-      rating: 4,
+      rating: 1,
       weather: "⛅",
       temperature: "21°C",
       notes:
       "Visite du Colisée, du Vatican et dégustation de spécialités italiennes.",
       gpsCoordinates: "41.9028° N, 12.4964° E",
     ),
-
   ];
+
+  late List<Trip> _filteredTrips;
+  int _selectedRating = 0; // 0 for "Tout"
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredTrips = _allTrips;
+  }
+
+  void _onFilterChanged(int rating) {
+    setState(() {
+      _selectedRating = rating;
+      if (rating == 0) {
+        _filteredTrips = _allTrips;
+      } else {
+        _filteredTrips =
+            _allTrips.where((trip) => trip.rating == rating).toList();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const _Header(),
+      appBar: _Header(trips: _filteredTrips),
       body: Column(
         children: [
-          const _Filters(),
-          Expanded(child: _TripList(trips: trips)),
+          _Filters(
+            selectedRating: _selectedRating,
+            onFilterChanged: _onFilterChanged,
+          ),
+          Expanded(child: _TripList(trips: _filteredTrips)),
         ],
       ),
     );
@@ -111,7 +138,8 @@ class HomeScreen extends StatelessWidget {
 /* ===================== HEADER ===================== */
 
 class _Header extends StatelessWidget implements PreferredSizeWidget {
-  const _Header({super.key});
+  final List<Trip> trips;
+  const _Header({required this.trips});
 
   @override
   Widget build(BuildContext context) {
@@ -137,16 +165,16 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
       title: const Text(
         "Juno - mon carnet de Voyage",
         style: TextStyle(
-          fontSize: 26,
+          fontSize: 25,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
       ),
-      bottom: const PreferredSize(
-        preferredSize: Size.fromHeight(80),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(80),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: _StatsRow(),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: _StatsRow(trips: trips),
         ),
       ),
     );
@@ -157,16 +185,23 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
 }
 
 class _StatsRow extends StatelessWidget {
-  const _StatsRow();
+  final List<Trip> trips;
+  const _StatsRow({required this.trips});
 
   @override
   Widget build(BuildContext context) {
+    final int sorties = trips.length;
+    final double moyenne = trips.isEmpty
+        ? 0.0
+        : trips.map((t) => t.rating).reduce((a, b) => a + b) / trips.length;
+    final int top = trips.where((t) => t.rating == 5).length;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: const [
-        _StatCard(title: "Sorties", value: "2"),
-        _StatCard(title: "Moyenne", value: "4.5"),
-        _StatCard(title: "Top", value: "2"),
+      children: [
+        _StatCard(title: "Sorties", value: sorties.toString()),
+        _StatCard(title: "Moyenne", value: moyenne.toStringAsFixed(1)),
+        _StatCard(title: "Top", value: top.toString()),
       ],
     );
   }
@@ -188,7 +223,6 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
-        // color: const Color(0xFF008080).withOpacity(0.18) ,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -214,34 +248,66 @@ class _StatCard extends StatelessWidget {
 /* ===================== FILTERS ===================== */
 
 class _Filters extends StatelessWidget {
-  const _Filters();
+  final int selectedRating;
+  final ValueChanged<int> onFilterChanged;
+
+  const _Filters({
+    required this.selectedRating,
+    required this.onFilterChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final filters = {
+      "Tout": 0,
+      "5★": 5,
+      "4★": 4,
+      "3★": 3,
+      "2★": 2,
+      "1★": 1,
+      "0★": 0,
+    };
+
+    final String selectedLabel = filters.entries
+        .firstWhere((entry) => entry.value == selectedRating)
+        .key;
+
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
-        children: const [
-          _FilterChip(label: "Tout"),
-          _FilterChip(label: "5★+"),
-          _FilterChip(label: "4★+"),
-          _FilterChip(label: "3★+"),
+        children: [
+          const Icon(Icons.filter_list, color: Colors.grey),
+          const SizedBox(width: 8),
+          const Text("Filtrer:", style: TextStyle(color: Colors.grey)),
+          const SizedBox(width: 16),
+          PopupMenuButton<int>(
+            onSelected: onFilterChanged,
+            itemBuilder: (BuildContext context) {
+              return filters.entries.map((entry) {
+                return PopupMenuItem<int>(
+                  value: entry.value,
+                  child: Text(entry.key),
+                );
+              }).toList();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Text(
+                selectedLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-
-  const _FilterChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Chip(label: Text(label)),
     );
   }
 }
@@ -255,6 +321,14 @@ class _TripList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (trips.isEmpty) {
+      return const Center(
+        child: Text(
+          "Aucune sortie ne correspond à ce filtre.",
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: trips.length,
@@ -314,7 +388,6 @@ class _TripCard extends StatelessWidget {
                 ),
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -366,8 +439,7 @@ class _Stars extends StatelessWidget {
         5,
             (index) => Icon(
           index < rating ? Icons.star : Icons.star_border,
-          // color: Colors.amber,
-              color: const Color(0xFFFFB000),
+          color: const Color(0xFFFFB000),
           size: 16,
         ),
       ),
