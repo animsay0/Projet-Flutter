@@ -2,7 +2,7 @@
 
 # 📱 Nom du projet Flutter
 
-## 🧾 Description du projet
+## Description du projet
 
 Brève description de l’application :
 - Objectif principal de l’application
@@ -13,7 +13,7 @@ Brève description de l’application :
 
 ## ⚙️ Environnement technique
 
-### 🧩 Versions utilisées
+### Versions utilisées
 
 - **Flutter** : `3.38.3`
 - **Dart** : `3.10.1`
@@ -21,17 +21,17 @@ Brève description de l’application :
 
 ---
 
-## 🖥️ Écrans & fonctionnalités
+## Écrans & fonctionnalités
 
-### 🔐 Écran 1 : Nom de l’écran (ex : Accueil / Login)
+### Écran 1 : Nom de l’écran (ex : Accueil / Login)
 - Description de l’écran
 - Fonctionnalités principales
 
-### 📝 Écran 2 : Nom de l’écran
+### Écran 2 : Nom de l’écran
 - Description
 - Actions possibles par l’utilisateur
 
-### ⚙️ Écran 3 : Nom de l’écran
+### Écran 3 : Nom de l’écran
 - Description
 - Fonctionnalités associées
 
@@ -39,7 +39,7 @@ Brève description de l’application :
 
 ---
 
-## 🔌 API utilisées
+## API utilisées
 
 Liste des API utilisées dans l’application :
 
@@ -54,7 +54,7 @@ Exemples :
 
 ---
 
-## 🔑 Autorisations nécessaires (Android / iOS)
+## Autorisations nécessaires (Android / iOS)
 
 Liste des permissions requises par l’application et leur justification :
 
@@ -63,13 +63,9 @@ Liste des permissions requises par l’application et leur justification :
 - **Caméra** : prise de photos
 - **Localisation** : accès à la position de l’utilisateur
 
-> Les autorisations sont définies dans :
-> - `AndroidManifest.xml`
-> - `Info.plist`
-
 ---
 
-## 📦 Dépendances principales
+## Dépendances principales
 
 Liste des principaux packages Flutter utilisés :
 
@@ -80,7 +76,7 @@ Liste des principaux packages Flutter utilisés :
 
 ---
 
-## ▶️ Lancement du projet
+## Lancement du projet
 
 ```bash
 flutter pub get
@@ -94,10 +90,4 @@ flutter run
 - ALIDOU Yasmina
 - AMAH Gaétan
 
-
----
-
-## 📄 Licence (optionnel)
-
-Ce projet est développé dans un cadre pédagogique.
 
