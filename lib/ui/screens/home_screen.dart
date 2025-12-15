@@ -32,14 +32,74 @@ class HomeScreen extends StatelessWidget {
       weather: "🌤️",
       temperature: "22°C",
     ),
+    Trip(
+      id: 3,
+      title: "Coucher de soleil à Santorin",
+      location: "Santorin",
+      date: "20/07/2024",
+      imageUrl:
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1080",
+      rating: 5,
+      weather: "🌅",
+      temperature: "28°C",
+      notes:
+      "Vue incroyable depuis Oia, ambiance magique et couleurs spectaculaires.",
+      gpsCoordinates: "36.3932° N, 25.4615° E",
+    ),
+
+    Trip(
+      id: 4,
+      title: "Balade nocturne à Paris",
+      location: "Paris",
+      date: "15/06/2024",
+      imageUrl:
+      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=1080",
+      rating: 4,
+      weather: "🌙",
+      temperature: "19°C",
+      notes:
+      "Promenade le long de la Seine avec les monuments illuminés.",
+      gpsCoordinates: "48.8566° N, 2.3522° E",
+    ),
+
+    Trip(
+      id: 5,
+      title: "Safari dans le désert",
+      location: "Dubaï",
+      date: "02/05/2024",
+      imageUrl:
+      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=1080",
+      rating: 5,
+      weather: "🌞",
+      temperature: "35°C",
+      notes:
+      "Expérience unique dans les dunes avec coucher de soleil et dîner traditionnel.",
+      gpsCoordinates: "25.2048° N, 55.2708° E",
+    ),
+
+    Trip(
+      id: 6,
+      title: "Week-end à Rome",
+      location: "Rome",
+      date: "10/04/2024",
+      imageUrl:
+      "https://images.unsplash.com/photo-1526481280690-7ead64a0cfe8?q=80&w=1080",
+      rating: 4,
+      weather: "⛅",
+      temperature: "21°C",
+      notes:
+      "Visite du Colisée, du Vatican et dégustation de spécialités italiennes.",
+      gpsCoordinates: "41.9028° N, 12.4964° E",
+    ),
+
   ];
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
+    return Scaffold(
+      appBar: const _Header(),
+      body: Column(
         children: [
-          const _Header(),
           const _Filters(),
           Expanded(child: _TripList(trips: trips)),
         ],
@@ -50,44 +110,50 @@ class HomeScreen extends StatelessWidget {
 
 /* ===================== HEADER ===================== */
 
-class _Header extends StatelessWidget {
-  const _Header();
+class _Header extends StatelessWidget implements PreferredSizeWidget {
+  const _Header({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF4F46E5),
-            Color(0xFF6366F1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF008080),
+              Color(0xFF006D6D),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(24),
+            bottomRight: Radius.circular(24),
+          ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            "Carnet de Voyage",
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 16),
-          _StatsRow(),
-        ],
+      title: const Text(
+        "Juno - mon carnet de Voyage",
+        style: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      bottom: const PreferredSize(
+        preferredSize: Size.fromHeight(80),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: _StatsRow(),
+        ),
       ),
     );
   }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(150);
 }
 
 class _StatsRow extends StatelessWidget {
@@ -122,6 +188,7 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
+        // color: const Color(0xFF008080).withOpacity(0.18) ,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -299,7 +366,8 @@ class _Stars extends StatelessWidget {
         5,
             (index) => Icon(
           index < rating ? Icons.star : Icons.star_border,
-          color: Colors.amber,
+          // color: Colors.amber,
+              color: const Color(0xFFFFB000),
           size: 16,
         ),
       ),

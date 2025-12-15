@@ -16,12 +16,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Carnet de Voyage',
+      title: 'Juno - Mon Carnet de Voyage',
       theme: ThemeData(
-        primaryColor: const Color(0xFF4F46E5),
+        primaryColor: const Color(0xFF008080),
         scaffoldBackgroundColor: const Color(0xFFF9FAFB),
         useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF008080),
+          primary: const Color(0xFF008080),
+          secondary: const Color(0xFFFFB000),
+        ),
       ),
+
       home: const MainLayout(),
     );
   }
