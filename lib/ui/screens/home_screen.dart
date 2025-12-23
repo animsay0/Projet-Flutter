@@ -108,12 +108,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onFilterChanged(int rating) {
     setState(() {
-      _selectedRating = rating;
-      if (rating == 0) {
+      // If the same filter is tapped again, reset to "Tout"
+      if (_selectedRating == rating) {
+        _selectedRating = 0;
+      } else {
+        _selectedRating = rating;
+      }
+
+      if (_selectedRating == 0) {
         _filteredTrips = _allTrips;
       } else {
         _filteredTrips =
-            _allTrips.where((trip) => trip.rating == rating).toList();
+            _allTrips.where((trip) => trip.rating == _selectedRating).toList();
       }
     });
   }
@@ -222,7 +228,7 @@ class _StatCard extends StatelessWidget {
       width: 100,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -265,48 +271,68 @@ class _Filters extends StatelessWidget {
       "3★": 3,
       "2★": 2,
       "1★": 1,
-      "0★": 0,
     };
 
-    final String selectedLabel = filters.entries
-        .firstWhere((entry) => entry.value == selectedRating)
-        .key;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          const Icon(Icons.filter_list, color: Colors.grey),
-          const SizedBox(width: 8),
-          const Text("Filtrer:", style: TextStyle(color: Colors.grey)),
-          const SizedBox(width: 16),
-          PopupMenuButton<int>(
-            onSelected: onFilterChanged,
-            itemBuilder: (BuildContext context) {
-              return filters.entries.map((entry) {
-                return PopupMenuItem<int>(
-                  value: entry.value,
-                  child: Text(entry.key),
-                );
-              }).toList();
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Text(
-                selectedLabel,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            const Icon(Icons.filter_list, color: Colors.grey),
+            const SizedBox(width: 8),
+            const Text("Filtrer:", style: TextStyle(color: Colors.grey)),
+            const SizedBox(width: 16),
+            ...filters.entries.map((entry) {
+              return _FilterChip(
+                label: entry.key,
+                rating: entry.value,
+                isSelected: selectedRating == entry.value,
+                onTap: () => onFilterChanged(entry.value),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final int rating;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.rating,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color selectedColor = (rating == 0) ? const Color(0xFF333333) : const Color(0xFF006D6D);
+    final Color unselectedColor = Colors.grey[200]!;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? selectedColor : unselectedColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -325,7 +351,7 @@ class _TripList extends StatelessWidget {
       return const Center(
         child: Text(
           "Aucune sortie ne correspond à ce filtre.",
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       );
     }
@@ -363,6 +389,8 @@ class _TripCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         clipBehavior: Clip.antiAlias,
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.1),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -384,7 +412,7 @@ class _TripCard extends StatelessWidget {
                 errorBuilder: (_, __, ___) => Container(
                   height: 180,
                   color: Colors.grey[300],
-                  child: const Icon(Icons.image_not_supported),
+                  child: const Icon(Icons.image_not_supported, size: 40),
                 ),
               ),
             ),
@@ -401,7 +429,7 @@ class _TripCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text("${trip.location} • ${trip.date}"),
+                  Text("${trip.location} • ${trip.date}", style: TextStyle(color: Colors.grey[600])),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -409,7 +437,7 @@ class _TripCard extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         "(${trip.rating}/5)",
-                        style: const TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const Spacer(),
                       Text("${trip.weather} ${trip.temperature}"),
