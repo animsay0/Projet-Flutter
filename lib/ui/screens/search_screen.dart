@@ -22,6 +22,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final PlaceService _placeService = PlaceService();
   String? _selectedCountry;
   int _searchRadius = 2000; // en mètres
+  bool _isNearbyMode = false; // si true, afficher le sélecteur de rayon
 
   bool _isLoading = false;
   List<Place> _results = [];
@@ -47,6 +48,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _search({double? lat, double? lng}) async {
+    // toute recherche manuelle annule le mode 'près de moi' (ne pas appliquer le radius global)
+    if (_isNearbyMode) setState(() => _isNearbyMode = false);
     final query = _controller.text.trim();
     if (query.isEmpty) return;
 
@@ -105,6 +108,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _searchNearby() async {
+    // activer le mode Nearby pour afficher le sélecteur et indiquer le contexte
+    if (!_isNearbyMode) setState(() => _isNearbyMode = true);
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -231,13 +236,15 @@ class _SearchScreenState extends State<SearchScreen> {
           _NearbyButton(
             onPressed: _searchNearby,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: _RadiusSelector(
-              radius: _searchRadius,
-              onChanged: (r) => setState(() => _searchRadius = r),
+          // n'afficher le sélecteur de rayon que si l'utilisateur a choisi 'Lieux à proximité'
+          if (_isNearbyMode)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: _RadiusSelector(
+                radius: _searchRadius,
+                onChanged: (r) => setState(() => _searchRadius = r),
+              ),
             ),
-          ),
           const _ApiInfoCard(),
           Expanded(
             child: _isLoading

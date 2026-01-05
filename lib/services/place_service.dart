@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import '../data/models/place_model.dart';
 
@@ -56,13 +57,19 @@ class PlaceService {
 
       if (response.statusCode != 200) {
         print('Foursquare returned ${response.statusCode}: ${response.body}');
-        // Fallback vers Nominatim
-        // Si on a des coordonnées, essayer d'abord Overpass pour des POI locaux
+        // Fallback -- essayer Nominatim, puis Photon, puis Overpass (si coords)
+        final nom = await _searchNominatim(query, countryCode: countryCode, lat: lat, lng: lng);
+        if (nom.isNotEmpty) return nom;
+
+        final photon = await _searchPhoton(query, countryCode: countryCode, limit: 20);
+        if (photon.isNotEmpty) return photon;
+
         if (lat != null && lng != null) {
           final over = await _searchOverpass(lat, lng);
           if (over.isNotEmpty) return over;
         }
-        return await _searchNominatim(query, countryCode: countryCode, lat: lat, lng: lng);
+
+        return [];
       }
 
       final data = jsonDecode(response.body);
@@ -91,12 +98,16 @@ class PlaceService {
         );
       }).toList();
     } catch (e) {
-      print('Erreur recherche Foursquare: $e — fallback vers Nominatim');
+      print('Erreur recherche Foursquare: $e — fallback vers Nominatim/Photon/Overpass');
+      final nom = await _searchNominatim(query, countryCode: countryCode, lat: lat, lng: lng);
+      if (nom.isNotEmpty) return nom;
+      final photon = await _searchPhoton(query, countryCode: countryCode, limit: 20);
+      if (photon.isNotEmpty) return photon;
       if (lat != null && lng != null) {
         final over = await _searchOverpass(lat, lng);
         if (over.isNotEmpty) return over;
       }
-      return await _searchNominatim(query, countryCode: countryCode, lat: lat, lng: lng);
+      return [];
     }
   }
 
@@ -188,11 +199,11 @@ out center;''';
         // 1) essayer POST
         try {
           resp = await http.post(endpoint,
-                  headers: {
-                    'User-Agent': 'Projet-Flutter/1.0 (contact: dev@example.com)',
-                    'Accept': 'application/json'
-                  },
-                  body: query)
+              headers: {
+                'User-Agent': 'Projet-Flutter/1.0 (contact: dev@example.com)',
+                'Accept': 'application/json'
+              },
+              body: query)
               .timeout(const Duration(seconds: 15));
           print('Overpass POST $endpoint -> status ${resp.statusCode}');
         } catch (e) {
@@ -233,7 +244,8 @@ out center;''';
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
       final List elements = data['elements'] ?? [];
-      final results = <Place>[];
+      final candidates = <Map<String, dynamic>>[];
+
       for (final e in elements) {
         final Map<String, dynamic> tags = (e['tags'] is Map) ? Map<String, dynamic>.from(e['tags']) : {};
         final name = tags['name']?.toString() ?? tags['official_name']?.toString() ?? '';
@@ -250,29 +262,70 @@ out center;''';
 
         final id = 'overpass_${e['id']}_${e['type']}';
 
-        // Construire une adresse si possible
+        // score en fonction du type (prioriser monuments/attractions)
+        int score = 0;
+        final tourism = tags['tourism']?.toString() ?? '';
+        final historic = tags['historic']?.toString() ?? '';
+        final leisure = tags['leisure']?.toString() ?? '';
+
+        final highTourism = {'attraction', 'museum', 'viewpoint', 'zoo', 'theme_park', 'gallery', 'aquarium'};
+        final historicPriority = {'castle', 'monument', 'archaeological_site'};
+
+        if (highTourism.contains(tourism)) score += 3;
+        if (historicPriority.contains(historic)) score += 3;
+        if (tourism.isNotEmpty) score += 1;
+        if (historic.isNotEmpty) score += 1;
+        if (leisure.isNotEmpty) score += 1;
+
+        // Build address
         final addressParts = <String>[];
         if (tags['addr:street'] != null) addressParts.add(tags['addr:street']);
         if (tags['addr:city'] != null) addressParts.add(tags['addr:city']);
+        if (tags['addr:housenumber'] != null) addressParts.add(tags['addr:housenumber']);
+        if (tags['addr:postcode'] != null) addressParts.add(tags['addr:postcode']);
+        if (tags['addr:suburb'] != null) addressParts.add(tags['addr:suburb']);
         final address = addressParts.join(', ');
 
+        // Compute distance to center
+        final dist = _distanceKm(lat, lng, plat, plng);
+
+        candidates.add({
+          'id': id,
+          'name': name,
+          'address': address,
+          'lat': plat,
+          'lng': plng,
+          'score': score,
+          'dist': dist,
+        });
+      }
+
+      // Trier par score descendante puis distance ascendante
+      candidates.sort((a, b) {
+        final s1 = a['score'] as int;
+        final s2 = b['score'] as int;
+        if (s1 != s2) return s2.compareTo(s1);
+        final d1 = a['dist'] as double;
+        final d2 = b['dist'] as double;
+        return d1.compareTo(d2);
+      });
+
+      final results = <Place>[];
+      for (final c in candidates.take(limit)) {
         results.add(Place(
-          id: id,
-          name: name,
-          address: address,
-          lat: plat,
-          lng: plng,
+          id: c['id'] as String,
+          name: c['name'] as String,
+          address: c['address'] as String,
+          lat: c['lat'] as double,
+          lng: c['lng'] as double,
           photoUrl: null,
           weather: null,
           temperature: null,
         ));
-        if (results.length >= limit) break;
       }
 
-      // limiter côté Dart
-      final limited = results.take(limit).toList();
-      print('✅ ${limited.length} résultats trouvés (Overpass)');
-      return limited;
+      print('✅ ${results.length} résultats trouvés (Overpass)');
+      return results;
     } catch (e) {
       print('Erreur Overpass: $e');
       return [];
@@ -310,6 +363,111 @@ out center;''';
 
 
   Future<Place> getPlaceDetails(String fsqPlaceId) async {
+    // Si l'ID provient d'un fallback (nominatim_/photon_/overpass_),
+    // récupérer les détails via les sources correspondantes pour retourner
+    // un Place exploitable (évite d'appeler Foursquare).
+    try {
+      if (fsqPlaceId.toLowerCase().startsWith('overpass_')) {
+        // format: overpass_<osmId>_<type>
+        final parts = fsqPlaceId.split('_');
+        if (parts.length >= 3) {
+          final osmId = parts[1];
+          final typ = parts[2]; // node/way/relation
+
+          // Construire requête Overpass pour l'élément
+          final overQuery = typ == 'node'
+              ? '[out:json][timeout:25];node(${osmId});out body;'
+              : '[out:json][timeout:25];${typ}(${osmId});out center;';
+
+          final endpoints = [
+            Uri.parse('https://overpass-api.de/api/interpreter'),
+            Uri.parse('https://lz4.overpass-api.de/api/interpreter'),
+            Uri.parse('https://overpass.kumi.systems/api/interpreter'),
+          ];
+
+          http.Response? resp;
+          for (final endpoint in endpoints) {
+            try {
+              resp = await http.post(endpoint, headers: {'User-Agent': 'Projet-Flutter/1.0 (contact: dev@example.com)'}, body: overQuery).timeout(const Duration(seconds: 12));
+            } catch (e) {
+              resp = null;
+            }
+            if (resp != null && resp.statusCode == 200) break;
+          }
+
+          if (resp == null || resp.statusCode != 200) throw Exception('Overpass lookup failed');
+
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          final elements = data['elements'] as List<dynamic>? ?? [];
+          if (elements.isEmpty) throw Exception('No overpass element');
+          final e = elements.first as Map<String, dynamic>;
+          final tags = (e['tags'] is Map) ? Map<String, dynamic>.from(e['tags']) : {};
+          final name = tags['name']?.toString() ?? tags['official_name']?.toString() ?? 'Lieu';
+          double plat = 0.0, plng = 0.0;
+          if (e['type'] == 'node') {
+            plat = (e['lat'] is num) ? (e['lat'] as num).toDouble() : 0.0;
+            plng = (e['lon'] is num) ? (e['lon'] as num).toDouble() : 0.0;
+          } else if (e['center'] != null) {
+            plat = (e['center']['lat'] is num) ? (e['center']['lat'] as num).toDouble() : 0.0;
+            plng = (e['center']['lon'] is num) ? (e['center']['lon'] as num).toDouble() : 0.0;
+          }
+
+          final addressParts = <String>[];
+          if (tags['addr:street'] != null) addressParts.add(tags['addr:street']);
+          if (tags['addr:city'] != null) addressParts.add(tags['addr:city']);
+          final address = addressParts.join(', ');
+
+          return Place(
+            id: fsqPlaceId,
+            name: name,
+            address: address,
+            lat: plat,
+            lng: plng,
+            photoUrl: null,
+            weather: null,
+            temperature: null,
+          );
+        }
+      }
+
+      if (fsqPlaceId.toLowerCase().startsWith('nominatim_')) {
+        // format: nominatim_<osmId>_<osmType>
+        final parts = fsqPlaceId.split('_');
+        if (parts.length >= 3) {
+          final osmId = parts[1];
+          final osmType = parts[2]; // node/way/relation
+          final typeChar = (osmType == 'node') ? 'N' : (osmType == 'way') ? 'W' : 'R';
+          final uri = Uri.https('nominatim.openstreetmap.org', '/lookup', {
+            'osm_ids': '$typeChar$osmId',
+            'format': 'json',
+            'addressdetails': '1',
+          });
+          final resp = await http.get(uri, headers: {'User-Agent': 'Projet-Flutter/1.0 (contact: dev@example.com)'}).timeout(const Duration(seconds: 8));
+          if (resp.statusCode != 200) throw Exception('Nominatim lookup failed');
+          final List data = jsonDecode(resp.body) as List<dynamic>;
+          if (data.isEmpty) throw Exception('Nominatim lookup empty');
+          final item = data[0] as Map<String, dynamic>;
+          final lat = double.tryParse(item['lat']?.toString() ?? '') ?? 0.0;
+          final lon = double.tryParse(item['lon']?.toString() ?? '') ?? 0.0;
+          final display = item['display_name']?.toString() ?? 'Lieu';
+          return Place(
+            id: fsqPlaceId,
+            name: display,
+            address: display,
+            lat: lat,
+            lng: lon,
+            photoUrl: null,
+            weather: null,
+            temperature: null,
+          );
+        }
+      }
+    } catch (e) {
+      // fallback: continuer et tenter Foursquare si possible
+      print('Fallback detail lookup failed for $fsqPlaceId: $e');
+    }
+
+    // Par défaut, appeler Foursquare pour les IDs natifs
     final uri = Uri.https(
       'places-api.foursquare.com',
       'places/$fsqPlaceId',
@@ -557,8 +715,9 @@ out center;''';
   /// Retourne un nouvel objet Place avec les champs `photoUrl`, `weather` et `temperature` remplis si disponibles.
   Future<Place> enrichPlace(Place place) async {
     try {
-      // Si l'ID provient de Nominatim, ne pas appeler l'API Foursquare (elle échouera)
-      if (place.id.startsWith('nominatim_')) {
+      // Si l'ID provient d'un fallback (nominatim_/photon_/overpass_),
+      // on n'appelle pas Foursquare : on enrichit avec Wikimedia + météo.
+      if (_isFallbackId(place.id)) {
         final photo = await _fetchImageFromWikimedia(place.name, lat: place.lat, lng: place.lng);
         final weatherData = await _getWeather(place.lat, place.lng);
 
@@ -729,6 +888,110 @@ out center;''';
     print('Keyword Nominatim aggregated results: ${deduped.length}');
     return deduped;
   }
+
+  /// Fallback: recherche via Photon (photon.komoot.io) pour recherche texte sans clé
+  Future<List<Place>> _searchPhoton(String query, {String? countryCode, int limit = 20}) async {
+    try {
+      // Si on souhaite limiter au pays (ex: FR), ajouter le nom du pays au terme de recherche
+      final countryNames = {'FR': 'France'};
+      String photonQuery = query;
+      if (countryCode != null && countryNames.containsKey(countryCode.toUpperCase())) {
+        photonQuery = '$query, ${countryNames[countryCode.toUpperCase()]}';
+      }
+
+      final params = {
+        'q': photonQuery,
+        'limit': limit.toString(),
+        'lang': 'fr',
+      };
+      final uri = Uri.https('photon.komoot.io', '/api', params);
+      print('Photon URL: $uri');
+      final resp = await http.get(uri, headers: {'User-Agent': 'Projet-Flutter/1.0 (contact: dev@example.com)'}).timeout(const Duration(seconds: 8));
+
+      if (resp.statusCode != 200) {
+        print('Photon returned ${resp.statusCode}: ${resp.body}');
+        return [];
+      }
+
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final List features = data['features'] ?? [];
+      final results = <Place>[];
+      for (final f in features) {
+        try {
+          final props = f['properties'] as Map<String, dynamic>;
+          final geom = f['geometry'] as Map<String, dynamic>;
+          final coords = (geom['coordinates'] as List).map((e) => (e as num).toDouble()).toList();
+          final lon = coords[0];
+          final lat = coords[1];
+          final name = (props['name'] ?? props['street'] ?? props['osm_type'] ?? query).toString();
+          final addressParts = <String>[];
+          if (props['city'] != null) addressParts.add(props['city']);
+          if (props['state'] != null) addressParts.add(props['state']);
+          if (props['country'] != null) addressParts.add(props['country']);
+          final address = addressParts.join(', ');
+
+          results.add(Place(
+            id: 'photon_${props['osm_id'] ?? ''}',
+            name: name,
+            address: address,
+            lat: lat,
+            lng: lon,
+            photoUrl: null,
+            weather: null,
+            temperature: null,
+          ));
+        } catch (e) {
+          // ignore malformed feature
+        }
+        if (results.length >= limit) break;
+      }
+      print('✅ ${results.length} résultats trouvés (Photon)');
+      return results;
+    } catch (e) {
+      print('Erreur Photon: $e');
+      return [];
+    }
+  }
+
+  /// 🌍 Recherche un lieu par son nom ou son adresse — utilise Foursquare, Nominatim, puis Overpass.
+  Future<List<Place>> searchByName(String name, {String? countryCode, double? lat, double? lng, int limit = 10}) async {
+    // Normalisation: remplacer '_' par ' ' (underscore vers espace)
+    final normalized = name.replaceAll('_', ' ').trim();
+    if (normalized.isEmpty) return [];
+
+    // 1) Essayer Foursquare en priorité
+    final fsqResults = await searchPlaces(normalized, countryCode: countryCode, lat: lat, lng: lng);
+    if (fsqResults.isNotEmpty) return fsqResults;
+
+    // 2) Si pas de résultat, essayer Nominatim
+    final nomResults = await _searchNominatim(normalized, countryCode: countryCode, lat: lat, lng: lng);
+    if (nomResults.isNotEmpty) return nomResults;
+
+    // 3) Si pas de résultat, essayer Photon
+    final photonResults = await _searchPhoton(normalized, countryCode: countryCode, limit: limit);
+    if (photonResults.isNotEmpty) return photonResults;
+
+    // 4) Dernier recours : recherche Overpass par mots-clés (peut retourner des POI)
+    final keywords = normalized.split(' ');
+    final overResults = await _searchNominatimKeywords(keywords, lat ?? 0.0, lng ?? 0.0, countryCode: countryCode, limit: limit);
+    return overResults;
+  }
+
+  // Helper: détecte si un id provient d'un fallback local (nominatim, photon, overpass)
+  bool _isFallbackId(String id) {
+    final low = id.toLowerCase();
+    return low.startsWith('nominatim_') || low.startsWith('photon_') || low.startsWith('overpass_');
+  }
+
+  // Calcul de la distance (km) entre deux points (Haversine)
+  double _distanceKm(double lat1, double lon1, double lat2, double lon2) {
+    const R = 6371.0; // Earth radius in km
+    final dLat = _deg2rad(lat2 - lat1);
+    final dLon = _deg2rad(lon2 - lon1);
+    final a = sin(dLat / 2) * sin(dLat / 2) + cos(_deg2rad(lat1)) * cos(_deg2rad(lat2)) * sin(dLon / 2) * sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
+  }
+
+  double _deg2rad(double deg) => deg * (pi / 180);
 }
-
-

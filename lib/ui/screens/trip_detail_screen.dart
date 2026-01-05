@@ -1,7 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:projet_flutter/ui/screens/map_screen.dart';
 import '../../data/models/trip.dart';
 
-class TripDetailScreen extends StatelessWidget {
+class TripDetailScreen extends StatefulWidget {
   final Trip trip;
 
   const TripDetailScreen({
@@ -10,7 +16,45 @@ class TripDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<TripDetailScreen> createState() => _TripDetailScreenState();
+}
+
+class _TripDetailScreenState extends State<TripDetailScreen> {
+  final ImagePicker _picker = ImagePicker();
+  final List<XFile> _photos = [];
+
+  Future<void> _pickImageFromCamera() async {
+    final XFile? file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+    if (file != null) {
+      setState(() => _photos.add(file));
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    final XFile? file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (file != null) {
+      setState(() => _photos.add(file));
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission de localisation refusée')));
+      return;
+    }
+
+    final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    // Ouvrir la MapScreen centrée sur la position courante
+    Navigator.push(context, MaterialPageRoute(builder: (_) => MapScreen(initialLocation: ll.LatLng(pos.latitude, pos.longitude))));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final trip = widget.trip;
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(
@@ -25,6 +69,57 @@ class TripDetailScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   if (trip.gpsCoordinates != null)
                     _GpsCard(trip: trip),
+                  const SizedBox(height: 16),
+
+                  // CAMERA & GALLERY ACTIONS
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Photos & localisation', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Row(children: [
+                            ElevatedButton.icon(
+                              onPressed: _pickImageFromCamera,
+                              icon: const Icon(Icons.camera_alt),
+                              label: const Text('Prendre photo'),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: _pickImageFromGallery,
+                              icon: const Icon(Icons.photo_library),
+                              label: const Text('Choisir'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: _getCurrentLocation,
+                              icon: const Icon(Icons.my_location),
+                              label: const Text('Ma position'),
+                            ),
+                          ]),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 90,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (_, i) {
+                                final file = _photos[i];
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(File(file.path), width: 120, height: 80, fit: BoxFit.cover),
+                                );
+                              },
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemCount: _photos.length,
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+
                   const SizedBox(height: 16),
                   _WeatherCard(trip: trip),
                   if (trip.notes != null) ...[
@@ -94,7 +189,7 @@ class _Header extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.6),
+                    Color.fromRGBO(0, 0, 0, 0.6),
                     Colors.transparent,
                   ],
                   begin: Alignment.bottomCenter,
@@ -393,4 +488,3 @@ class _PlaceInfoCard extends StatelessWidget {
     );
   }
 }
-
