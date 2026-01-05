@@ -431,7 +431,6 @@ class _PlaceCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        onTap: () => onTap(place),
         leading: place.photoUrl != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(8),
