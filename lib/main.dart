@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projet_flutter/data/models/trip.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/search_screen.dart';
 import 'ui/screens/add_trip_screen.dart';
@@ -27,7 +28,6 @@ class MyApp extends StatelessWidget {
           secondary: const Color(0xFFFFB000),
         ),
       ),
-
       home: const MainLayout(),
     );
   }
@@ -42,18 +42,28 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
+  final List<Trip> _trips = [];
 
-  final screens = const [
-    HomeScreen(),
-    SearchScreen(),
-    AddTripScreen(),
-    MapScreen(),
-  ];
+  void _addTrip(Trip trip) {
+    setState(() {
+      _trips.add(trip);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      HomeScreen(trips: _trips),
+      SearchScreen(onAddTrip: _addTrip),
+      AddTripScreen(onAddTrip: _addTrip),
+      const MapScreen(),
+    ];
+
     return Scaffold(
-      body: screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
+      ),
       bottomNavigationBar: BottomNavigation(
         currentIndex: _currentIndex,
         onTap: (index) {

@@ -3,125 +3,51 @@ import '../../data/models/trip.dart';
 import 'trip_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final List<Trip> trips;
+  const HomeScreen({super.key, required this.trips});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Trip> _allTrips = [
-    Trip(
-      id: 1,
-      title: "Randonnée Mont Blanc",
-      location: "Chamonix",
-      date: "12/12/2024",
-      imageUrl:
-      "https://images.unsplash.com/photo-1713959989861-2425c95e9777?q=80&w=1080",
-      rating: 5,
-      weather: "☀️",
-      temperature: "18°C",
-      notes:
-      "Une journée magnifique avec une vue exceptionnelle sur le Mont Blanc.",
-      gpsCoordinates: "45.8326° N, 6.8652° E",
-    ),
-    Trip(
-      id: 2,
-      title: "Lac d’Annecy",
-      location: "Annecy",
-      date: "05/08/2024",
-      imageUrl:
-      "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1080",
-      rating: 4,
-      weather: "🌤️",
-      temperature: "22°C",
-    ),
-    Trip(
-      id: 3,
-      title: "Coucher de soleil à Santorin",
-      location: "Santorin",
-      date: "20/07/2024",
-      imageUrl:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1080",
-      rating: 5,
-      weather: "🌅",
-      temperature: "28°C",
-      notes:
-      "Vue incroyable depuis Oia, ambiance magique et couleurs spectaculaires.",
-      gpsCoordinates: "36.3932° N, 25.4615° E",
-    ),
-
-    Trip(
-      id: 4,
-      title: "Balade nocturne à Paris",
-      location: "Paris",
-      date: "15/06/2024",
-      imageUrl:
-      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=1080",
-      rating: 4,
-      weather: "🌙",
-      temperature: "19°C",
-      notes:
-      "Promenade le long de la Seine avec les monuments illuminés.",
-      gpsCoordinates: "48.8566° N, 2.3522° E",
-    ),
-
-    Trip(
-      id: 5,
-      title: "Safari dans le désert",
-      location: "Dubaï",
-      date: "02/05/2024",
-      imageUrl:
-      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=1080",
-      rating: 2,
-      weather: "🌞",
-      temperature: "35°C",
-      notes:
-      "Expérience unique dans les dunes avec coucher de soleil et dîner traditionnel.",
-      gpsCoordinates: "25.2048° N, 55.2708° E",
-    ),
-
-    Trip(
-      id: 6,
-      title: "Week-end à Rome",
-      location: "Rome",
-      date: "10/04/2024",
-      imageUrl:
-      "https://images.unsplash.com/photo-1526481280690-7ead64a0cfe8?q=80&w=1080",
-      rating: 1,
-      weather: "⛅",
-      temperature: "21°C",
-      notes:
-      "Visite du Colisée, du Vatican et dégustation de spécialités italiennes.",
-      gpsCoordinates: "41.9028° N, 12.4964° E",
-    ),
-  ];
-
   late List<Trip> _filteredTrips;
   int _selectedRating = 0; // 0 for "Tout"
 
   @override
   void initState() {
     super.initState();
-    _filteredTrips = _allTrips;
+    _filteredTrips = widget.trips;
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.trips != oldWidget.trips) {
+      _applyFilter(_selectedRating);
+    }
+  }
+
+  void _applyFilter(int rating) {
+    setState(() {
+      if (rating == 0) {
+        _filteredTrips = widget.trips;
+      } else {
+        _filteredTrips =
+            widget.trips.where((trip) => trip.rating == rating).toList();
+      }
+    });
   }
 
   void _onFilterChanged(int rating) {
-    setState(() {
-      // If the same filter is tapped again, reset to "Tout"
-      if (_selectedRating == rating) {
-        _selectedRating = 0;
-      } else {
-        _selectedRating = rating;
-      }
+    // If the same filter is tapped again, reset to "Tout"
+    if (_selectedRating == rating) {
+      _selectedRating = 0;
+    } else {
+      _selectedRating = rating;
+    }
+    _applyFilter(_selectedRating);
 
-      if (_selectedRating == 0) {
-        _filteredTrips = _allTrips;
-      } else {
-        _filteredTrips =
-            _allTrips.where((trip) => trip.rating == _selectedRating).toList();
-      }
-    });
   }
 
   @override
@@ -350,7 +276,8 @@ class _TripList extends StatelessWidget {
     if (trips.isEmpty) {
       return const Center(
         child: Text(
-          "Aucune sortie ne correspond à ce filtre.",
+          "Aucune sortie pour le moment. Appuyez sur le bouton '+' pour en ajouter une.",
+          textAlign: TextAlign.center,
           style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       );

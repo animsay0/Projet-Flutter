@@ -1,45 +1,117 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:projet_flutter/data/models/place_model.dart';
+import 'package:projet_flutter/data/models/trip.dart';
 
-class AddTripScreen extends StatelessWidget {
+class AddTripScreen extends StatefulWidget {
   final Place? place;
+  final Function(Trip)? onAddTrip;
 
-  const AddTripScreen({super.key, this.place});
+  const AddTripScreen({super.key, this.place, this.onAddTrip});
+
+  @override
+  State<AddTripScreen> createState() => _AddTripScreenState();
+}
+
+class _AddTripScreenState extends State<AddTripScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _titleController;
+  late TextEditingController _locationController;
+  late TextEditingController _notesController;
+  late DateTime _selectedDate;
+  double _rating = 3.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.place?.name);
+    _locationController = TextEditingController(text: widget.place?.address);
+    _notesController = TextEditingController();
+    _selectedDate = DateTime.now();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _locationController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (pickedDate != null && pickedDate != _selectedDate) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+    }
+  }
+
+  void _saveTrip() {
+    if (_formKey.currentState!.validate()) {
+      final newTrip = Trip(
+        id: DateTime.now().millisecondsSinceEpoch, // Unique ID
+        title: _titleController.text,
+        location: _locationController.text,
+        date: DateFormat('dd/MM/yyyy').format(_selectedDate),
+        imageUrl: widget.place?.photoUrl ?? "https://via.placeholder.com/1080",
+        rating: _rating.toInt(),
+        weather: widget.place?.weather ?? "",
+        temperature: widget.place?.temperature?.toString() ?? "",
+        notes: _notesController.text,
+      );
+      widget.onAddTrip?.call(newTrip);
+      Navigator.of(context).pop(); // Go back to the previous screen
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Nouvelle Sortie"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: _saveTrip,
+          )
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 🖼 PHOTO DU LIEU
-            _PlaceHeader(place: place),
-
-            const SizedBox(height: 16),
-
-            _QuickActions(),
-
-            const SizedBox(height: 16),
-
-            _FormCard(place: place),
-
-            const SizedBox(height: 24),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: sauvegarde
-                },
-                child: const Text("Enregistrer"),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PlaceHeader(place: widget.place),
+              const SizedBox(height: 16),
+              _FormCard(
+                titleController: _titleController,
+                locationController: _locationController,
+                notesController: _notesController,
+                selectedDate: _selectedDate,
+                onDateTap: _pickDate,
               ),
-            )
-          ],
+              const SizedBox(height: 16),
+              _RatingSlider(rating: _rating, onChanged: (newRating) {
+                setState(() => _rating = newRating);
+              }),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saveTrip,
+                  child: const Text("Enregistrer"),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );
@@ -79,67 +151,25 @@ class _PlaceHeader extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        if (place != null) ...[
-          Text(
-            place!.name,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            place!.address,
-            style: const TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 4),
-          if (place!.temperature != null)
-            Text(
-              "${place!.temperature}°C • ${place!.weather}",
-            ),
-        ],
       ],
-    );
-  }
-}
-
-
-class _QuickActions extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _ActionButton(icon: Icons.camera_alt, label: "Photo"),
-        const SizedBox(width: 12),
-        _ActionButton(icon: Icons.location_on, label: "GPS"),
-      ],
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _ActionButton({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: OutlinedButton.icon(
-        onPressed: () {},
-        icon: Icon(icon),
-        label: Text(label),
-      ),
     );
   }
 }
 
 class _FormCard extends StatelessWidget {
-  final Place? place;
+  final TextEditingController titleController;
+  final TextEditingController locationController;
+  final TextEditingController notesController;
+  final DateTime selectedDate;
+  final VoidCallback onDateTap;
 
-  const _FormCard({this.place});
+  const _FormCard({
+    required this.titleController,
+    required this.locationController,
+    required this.notesController,
+    required this.selectedDate,
+    required this.onDateTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -148,18 +178,30 @@ class _FormCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(
+            TextFormField(
+              controller: titleController,
               decoration: const InputDecoration(labelText: "Titre"),
-              controller: TextEditingController(text: place?.name),
+              validator: (value) =>
+              value!.isEmpty ? "Le titre ne peut pas être vide" : null,
             ),
             const SizedBox(height: 12),
-            TextField(
+            TextFormField(
+              controller: locationController,
               decoration: const InputDecoration(labelText: "Lieu"),
-              controller: TextEditingController(text: place?.address),
+              validator: (value) =>
+              value!.isEmpty ? "Le lieu ne peut pas être vide" : null,
             ),
             const SizedBox(height: 12),
-            const TextField(
-              decoration: InputDecoration(labelText: "Notes"),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text("Date"),
+              subtitle: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
+              onTap: onDateTap,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: notesController,
+              decoration: const InputDecoration(labelText: "Notes"),
               maxLines: 4,
             ),
           ],
@@ -169,3 +211,32 @@ class _FormCard extends StatelessWidget {
   }
 }
 
+class _RatingSlider extends StatelessWidget {
+  final double rating;
+  final ValueChanged<double> onChanged;
+
+  const _RatingSlider({required this.rating, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Note", style: TextStyle(fontWeight: FontWeight.bold)),
+            Slider(
+              value: rating,
+              min: 1,
+              max: 5,
+              divisions: 4,
+              label: rating.toInt().toString(),
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
