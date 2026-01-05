@@ -327,7 +327,7 @@ class _RatingSlider extends StatelessWidget {
               min: 1,
               max: 5,
               divisions: 4,
-              label: rating.toInt().toString(),
+              label: "${rating.toInt()}⭐",
               onChanged: onChanged,
             ),
           ],
