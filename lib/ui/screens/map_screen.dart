@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import '../../data/models/place_model.dart';
 import '../../utils/persistence.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final ll.LatLng? initialLocation;
+  const MapScreen({super.key, this.initialLocation});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -18,7 +20,7 @@ class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
 
   // Coordonnée par défaut (France centre)
-  static const LatLng _defaultCenter = LatLng(46.5, 2.5);
+  static const ll.LatLng _defaultCenter = ll.LatLng(46.5, 2.5);
 
   @override
   void initState() {
@@ -82,7 +84,10 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final center = _places.isNotEmpty ? LatLng(_places.first.lat, _places.first.lng) : _defaultCenter;
+    // Try widget.initialLocation first, then route arguments (RouteSettings.arguments), then fallback
+    final routeArg = ModalRoute.of(context)?.settings.arguments;
+    final ll.LatLng? argLoc = (routeArg is ll.LatLng) ? routeArg : null;
+    final center = widget.initialLocation ?? argLoc ?? (_places.isNotEmpty ? ll.LatLng(_places.first.lat, _places.first.lng) : _defaultCenter);
 
     return Scaffold(
       appBar: AppBar(
@@ -114,7 +119,7 @@ class _MapScreenState extends State<MapScreen> {
                 MarkerLayer(
                   markers: _places.map((p) {
                     return Marker(
-                      point: LatLng(p.lat, p.lng),
+                      point: ll.LatLng(p.lat, p.lng),
                       width: 40,
                       height: 40,
                       child: GestureDetector(
@@ -151,6 +156,14 @@ class _MapScreenState extends State<MapScreen> {
                             icon: const Icon(Icons.refresh),
                             label: const Text('Rafraîchir'),
                           ),
+                          if (widget.initialLocation != null)
+                            TextButton.icon(
+                              onPressed: () {
+                                _mapController.move(widget.initialLocation!, 14);
+                              },
+                              icon: const Icon(Icons.my_location),
+                              label: const Text('Centrer'),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -179,17 +192,48 @@ class _MapScreenState extends State<MapScreen> {
                                                   const SizedBox(height: 6),
                                                   Expanded(child: Text(p.address, overflow: TextOverflow.ellipsis, maxLines: 4)),
                                                   const SizedBox(height: 6),
+                                                  // Nouvelle ligne: petite vignette de l'image si disponible
                                                   Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                     children: [
-                                                      Text(p.temperature != null ? '${p.temperature!.round()}°C' : ''),
+                                                      p.photoUrl != null
+                                                          ? ClipRRect(
+                                                              borderRadius: BorderRadius.circular(8),
+                                                              child: CachedNetworkImage(
+                                                                imageUrl: p.photoUrl!,
+                                                                width: 80,
+                                                                height: 60,
+                                                                fit: BoxFit.cover,
+                                                                placeholder: (context, url) => Container(
+                                                                  width: 80,
+                                                                  height: 60,
+                                                                  color: Colors.grey[200],
+                                                                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                                                ),
+                                                                errorWidget: (context, url, error) => Container(
+                                                                  width: 80,
+                                                                  height: 60,
+                                                                  color: Colors.grey[300],
+                                                                  child: const Icon(Icons.image_not_supported),
+                                                                ),
+                                                              ),
+                                                            )
+                                                           : Container(
+                                                               width: 80,
+                                                               height: 60,
+                                                               decoration: BoxDecoration(
+                                                                 color: Colors.grey[300],
+                                                                 borderRadius: BorderRadius.circular(8),
+                                                               ),
+                                                               child: const Icon(Icons.place),
+                                                             ),
+                                                      const Spacer(),
                                                       Row(
                                                         children: [
                                                           IconButton(
                                                             icon: const Icon(Icons.location_on),
                                                             onPressed: () {
                                                               // recentrer la carte sur ce lieu
-                                                              _mapController.move(LatLng(p.lat, p.lng), 13);
+                                                              _mapController.move(ll.LatLng(p.lat, p.lng), 13);
                                                             },
                                                           ),
                                                           IconButton(

@@ -1,7 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:intl/intl.dart';
 import 'package:projet_flutter/data/models/place_model.dart';
 import 'package:projet_flutter/data/models/trip.dart';
+import 'package:projet_flutter/ui/screens/map_screen.dart';
 
 class AddTripScreen extends StatefulWidget {
   final Place? place;
@@ -20,6 +26,9 @@ class _AddTripScreenState extends State<AddTripScreen> {
   late TextEditingController _notesController;
   late DateTime _selectedDate;
   double _rating = 3.0;
+  final ImagePicker _picker = ImagePicker();
+  final List<XFile> _photos = [];
+  Position? _pickedPosition;
 
   @override
   void initState() {
@@ -59,15 +68,45 @@ class _AddTripScreenState extends State<AddTripScreen> {
         title: _titleController.text,
         location: _locationController.text,
         date: DateFormat('dd/MM/yyyy').format(_selectedDate),
-        imageUrl: widget.place?.photoUrl ?? "https://via.placeholder.com/1080",
+        // If user selected/took photos, use first local file path, else fallback to place photoUrl or placeholder
+        imageUrl: _photos.isNotEmpty
+            ? _photos.first.path
+            : (widget.place?.photoUrl ?? "https://via.placeholder.com/1080"),
         rating: _rating.toInt(),
         weather: widget.place?.weather ?? "",
         temperature: widget.place?.temperature?.toString() ?? "",
         notes: _notesController.text,
+        gpsCoordinates: _pickedPosition != null
+            ? '${_pickedPosition!.latitude},${_pickedPosition!.longitude}'
+            : null,
       );
       widget.onAddTrip?.call(newTrip);
       Navigator.of(context).pop(); // Go back to the previous screen
     }
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    final XFile? file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+    if (file != null) setState(() => _photos.add(file));
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    final XFile? file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (file != null) setState(() => _photos.add(file));
+  }
+
+  Future<void> _getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission de localisation refusée')));
+      return;
+    }
+
+    final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    setState(() => _pickedPosition = pos);
   }
 
   @override
@@ -97,6 +136,63 @@ class _AddTripScreenState extends State<AddTripScreen> {
                 notesController: _notesController,
                 selectedDate: _selectedDate,
                 onDateTap: _pickDate,
+              ),
+              const SizedBox(height: 16),
+              // Photos & location actions for add screen
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Photos & localisation', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        ElevatedButton.icon(onPressed: _pickImageFromCamera, icon: const Icon(Icons.camera_alt), label: const Text('Prendre')),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(onPressed: _pickImageFromGallery, icon: const Icon(Icons.photo_library), label: const Text('Galerie')),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(onPressed: _getCurrentLocation, icon: const Icon(Icons.my_location), label: const Text('Localiser')),
+                        const SizedBox(width: 8),
+                        if (_pickedPosition != null)
+                          Text('OK: ${_pickedPosition!.latitude.toStringAsFixed(4)}, ${_pickedPosition!.longitude.toStringAsFixed(4)}'),
+                      ]),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 90,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemBuilder: (_, i) {
+                            final file = _photos[i];
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(File(file.path), width: 120, height: 80, fit: BoxFit.cover),
+                            );
+                          },
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemCount: _photos.length,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            // open map with current picked position or place coords
+                            final lat = _pickedPosition?.latitude ?? widget.place?.lat;
+                            final lng = _pickedPosition?.longitude ?? widget.place?.lng;
+                            if (lat != null && lng != null) {
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => MapScreen(initialLocation: ll.LatLng(lat, lng))));
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucune position disponible')));
+                            }
+                          },
+                          icon: const Icon(Icons.map),
+                          label: const Text('Voir sur la carte'),
+                        ),
+                      ])
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               _RatingSlider(rating: _rating, onChanged: (newRating) {
