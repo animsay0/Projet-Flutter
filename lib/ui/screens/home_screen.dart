@@ -2,46 +2,65 @@ import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
 import 'trip_detail_screen.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  final List<Trip> trips;
+  const HomeScreen({super.key, required this.trips});
 
-  // Mock data (temporaire)
-  List<Trip> get trips => [
-    Trip(
-      id: 1,
-      title: "Randonnée Mont Blanc",
-      location: "Chamonix",
-      date: "12/12/2024",
-      imageUrl:
-      "https://images.unsplash.com/photo-1713959989861-2425c95e9777?q=80&w=1080",
-      rating: 5,
-      weather: "☀️",
-      temperature: "18°C",
-      notes:
-      "Une journée magnifique avec une vue exceptionnelle sur le Mont Blanc.",
-      gpsCoordinates: "45.8326° N, 6.8652° E",
-    ),
-    Trip(
-      id: 2,
-      title: "Lac d’Annecy",
-      location: "Annecy",
-      date: "05/08/2024",
-      imageUrl:
-      "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1080",
-      rating: 4,
-      weather: "🌤️",
-      temperature: "22°C",
-    ),
-  ];
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late List<Trip> _filteredTrips;
+  int _selectedRating = 0; // 0 for "Tout"
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredTrips = widget.trips;
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.trips != oldWidget.trips) {
+      _applyFilter(_selectedRating);
+    }
+  }
+
+  void _applyFilter(int rating) {
+    setState(() {
+      if (rating == 0) {
+        _filteredTrips = widget.trips;
+      } else {
+        _filteredTrips =
+            widget.trips.where((trip) => trip.rating == rating).toList();
+      }
+    });
+  }
+
+  void _onFilterChanged(int rating) {
+    // If the same filter is tapped again, reset to "Tout"
+    if (_selectedRating == rating) {
+      _selectedRating = 0;
+    } else {
+      _selectedRating = rating;
+    }
+    _applyFilter(_selectedRating);
+
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
+    return Scaffold(
+      appBar: _Header(trips: _filteredTrips),
+      body: Column(
         children: [
-          const _Header(),
-          const _Filters(),
-          Expanded(child: _TripList(trips: trips)),
+          _Filters(
+            selectedRating: _selectedRating,
+            onFilterChanged: _onFilterChanged,
+          ),
+          Expanded(child: _TripList(trips: _filteredTrips)),
         ],
       ),
     );
@@ -50,57 +69,71 @@ class HomeScreen extends StatelessWidget {
 
 /* ===================== HEADER ===================== */
 
-class _Header extends StatelessWidget {
-  const _Header();
+class _Header extends StatelessWidget implements PreferredSizeWidget {
+  final List<Trip> trips;
+  const _Header({required this.trips});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF4F46E5),
-            Color(0xFF6366F1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF008080),
+              Color(0xFF006D6D),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(24),
+            bottomRight: Radius.circular(24),
+          ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            "Carnet de Voyage",
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 16),
-          _StatsRow(),
-        ],
+      title: const Text(
+        "Juno - mon carnet de Voyage",
+        style: TextStyle(
+          fontSize: 25,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(80),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: _StatsRow(trips: trips),
+        ),
       ),
     );
   }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(150);
 }
 
 class _StatsRow extends StatelessWidget {
-  const _StatsRow();
+  final List<Trip> trips;
+  const _StatsRow({required this.trips});
 
   @override
   Widget build(BuildContext context) {
+    final int sorties = trips.length;
+    final double moyenne = trips.isEmpty
+        ? 0.0
+        : trips.map((t) => t.rating).reduce((a, b) => a + b) / trips.length;
+    final int top = trips.where((t) => t.rating == 5).length;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: const [
-        _StatCard(title: "Sorties", value: "2"),
-        _StatCard(title: "Moyenne", value: "4.5"),
-        _StatCard(title: "Top", value: "2"),
+      children: [
+        _StatCard(title: "Sorties", value: sorties.toString()),
+        _StatCard(title: "Moyenne", value: moyenne.toStringAsFixed(1)),
+        _StatCard(title: "Top", value: top.toString()),
       ],
     );
   }
@@ -121,7 +154,7 @@ class _StatCard extends StatelessWidget {
       width: 100,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -147,19 +180,46 @@ class _StatCard extends StatelessWidget {
 /* ===================== FILTERS ===================== */
 
 class _Filters extends StatelessWidget {
-  const _Filters();
+  final int selectedRating;
+  final ValueChanged<int> onFilterChanged;
+
+  const _Filters({
+    required this.selectedRating,
+    required this.onFilterChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final filters = {
+      "Tout": 0,
+      "5★": 5,
+      "4★": 4,
+      "3★": 3,
+      "2★": 2,
+      "1★": 1,
+    };
+
     return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: const [
-          _FilterChip(label: "Tout"),
-          _FilterChip(label: "5★+"),
-          _FilterChip(label: "4★+"),
-          _FilterChip(label: "3★+"),
-        ],
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            const Icon(Icons.filter_list, color: Colors.grey),
+            const SizedBox(width: 8),
+            const Text("Filtrer:", style: TextStyle(color: Colors.grey)),
+            const SizedBox(width: 16),
+            ...filters.entries.map((entry) {
+              return _FilterChip(
+                label: entry.key,
+                rating: entry.value,
+                isSelected: selectedRating == entry.value,
+                onTap: () => onFilterChanged(entry.value),
+              );
+            }).toList(),
+          ],
+        ),
       ),
     );
   }
@@ -167,14 +227,39 @@ class _Filters extends StatelessWidget {
 
 class _FilterChip extends StatelessWidget {
   final String label;
+  final int rating;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-  const _FilterChip({required this.label});
+  const _FilterChip({
+    required this.label,
+    required this.rating,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Chip(label: Text(label)),
+    final Color selectedColor = (rating == 0) ? const Color(0xFF333333) : const Color(0xFF006D6D);
+    final Color unselectedColor = Colors.grey[200]!;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? selectedColor : unselectedColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -188,6 +273,15 @@ class _TripList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (trips.isEmpty) {
+      return const Center(
+        child: Text(
+          "Aucune sortie pour le moment. Appuyez sur le bouton '+' pour en ajouter une.",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey, fontSize: 16),
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: trips.length,
@@ -222,6 +316,8 @@ class _TripCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         clipBehavior: Clip.antiAlias,
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.1),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -243,11 +339,10 @@ class _TripCard extends StatelessWidget {
                 errorBuilder: (_, __, ___) => Container(
                   height: 180,
                   color: Colors.grey[300],
-                  child: const Icon(Icons.image_not_supported),
+                  child: const Icon(Icons.image_not_supported, size: 40),
                 ),
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -261,7 +356,7 @@ class _TripCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text("${trip.location} • ${trip.date}"),
+                  Text("${trip.location} • ${trip.date}", style: TextStyle(color: Colors.grey[600])),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -269,7 +364,7 @@ class _TripCard extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         "(${trip.rating}/5)",
-                        style: const TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const Spacer(),
                       Text("${trip.weather} ${trip.temperature}"),
@@ -299,7 +394,7 @@ class _Stars extends StatelessWidget {
         5,
             (index) => Icon(
           index < rating ? Icons.star : Icons.star_border,
-          color: Colors.amber,
+          color: const Color(0xFFFFB000),
           size: 16,
         ),
       ),
