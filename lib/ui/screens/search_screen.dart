@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/place_model.dart';
 import '../../services/place_service.dart';
 import '../../utils/persistence.dart';
@@ -17,6 +19,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _controller = TextEditingController();
   final PlaceService _placeService = PlaceService();
   String? _selectedCountry;
+  int _searchRadius = 2000; // en mètres
 
   bool _isLoading = false;
   List<Place> _results = [];
@@ -41,7 +44,7 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-  Future<void> _search() async {
+  Future<void> _search({double? lat, double? lng}) async {
     final query = _controller.text.trim();
     if (query.isEmpty) return;
 
@@ -55,6 +58,8 @@ class _SearchScreenState extends State<SearchScreen> {
       final places = await _placeService.searchPlaces(
         query,
         countryCode: _selectedCountry,
+        lat: lat,
+        lng: lng,
       );
 
       // Afficher d'abord les résultats bruts
@@ -62,25 +67,26 @@ class _SearchScreenState extends State<SearchScreen> {
         _results = places;
       });
 
-      // Enrichir chaque place en tâche de fond et mettre à jour progressivement
-      for (var i = 0; i < places.length; i++) {
+      // Enrichir un nombre limité de places en tâche de fond pour limiter les appels concurrents
+      final maxEnrich = min(places.length, 6); // limiter à 6 enrichissements simultanés
+      for (var i = 0; i < maxEnrich; i++) {
         final original = places[i];
 
-        // Lancer l'enrichissement sans attendre les autres
-        _placeService.enrichPlace(original).then((enriched) {
-          // Si un nouveau token a été émis, ignorer cette mise à jour
-          if (!mounted || currentToken != _searchToken) return;
+        // Ajouter un petit délai pour éviter une rafale d'appels
+        Future.delayed(Duration(milliseconds: 150 * i), () {
+          _placeService.enrichPlace(original).then((enriched) {
+            if (!mounted || currentToken != _searchToken) return;
 
-          setState(() {
-            // Remplacer l'élément correspondant (si présent)
-            final index = _results.indexWhere((p) => p.id == enriched.id);
-            if (index != -1) {
-              _results[index] = enriched;
-            }
+            setState(() {
+              final index = _results.indexWhere((p) => p.id == enriched.id);
+              if (index != -1) {
+                _results[index] = enriched;
+              }
+            });
+          }).catchError((e) {
+            // Ne pas bloquer l'UI si l'enrichissement échoue
+            print('Erreur enrichissement lieu ${original.id}: $e');
           });
-        }).catchError((e) {
-          // Ne pas bloquer l'UI si l'enrichissement échoue
-          print('Erreur enrichissement lieu ${original.id}: $e');
         });
       }
     } catch (e) {
@@ -146,9 +152,38 @@ class _SearchScreenState extends State<SearchScreen> {
         SnackBar(content: Text('Position: ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}')),
       );
 
-      // Optionnel: on peut pré-remplir le champ recherche et lancer la recherche
-      _controller.text = query;
-      await _search();
+      // Optionnel: pré-remplir le champ recherche
+      //_controller.text = query;
+
+      // Appeler la méthode dédiée searchNearby pour récupérer des POI locaux (Overpass puis Nominatim)
+      final places = await _placeService.searchNearby(pos.latitude, pos.longitude, countryCode: _selectedCountry, radius: _searchRadius);
+
+      // Afficher les résultats bruts
+      if (mounted) {
+        setState(() {
+          _results = places;
+        });
+      }
+
+      // Enrichir progressivement (limité) - réutiliser la logique d'enrichissement
+      final int currentToken = ++_searchToken;
+      final maxEnrich = min(places.length, 6);
+      for (var i = 0; i < maxEnrich; i++) {
+        final original = places[i];
+        Future.delayed(Duration(milliseconds: 150 * i), () {
+          _placeService.enrichPlace(original).then((enriched) {
+            if (!mounted || currentToken != _searchToken) return;
+            setState(() {
+              final index = _results.indexWhere((p) => p.id == enriched.id);
+              if (index != -1) {
+                _results[index] = enriched;
+              }
+            });
+          }).catchError((e) {
+            print('Erreur enrichissement lieu ${original.id}: $e');
+          });
+        });
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur localisation: $e')),
@@ -193,6 +228,13 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           _NearbyButton(
             onPressed: _searchNearby,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: _RadiusSelector(
+              radius: _searchRadius,
+              onChanged: (r) => setState(() => _searchRadius = r),
+            ),
           ),
           const _ApiInfoCard(),
           Expanded(
@@ -390,12 +432,18 @@ class _PlaceCard extends StatelessWidget {
         leading: place.photoUrl != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  place.photoUrl!,
+                child: CachedNetworkImage(
+                  imageUrl: place.photoUrl!,
                   width: 56,
                   height: 56,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
+                  placeholder: (context, url) => Container(
+                    width: 56,
+                    height: 56,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  errorWidget: (context, url, error) => Container(
                     width: 56,
                     height: 56,
                     color: Colors.grey[300],
@@ -424,6 +472,37 @@ class _PlaceCard extends StatelessWidget {
         ),
         onTap: () => onTap(place),
       ),
+    );
+  }
+}
+
+class _RadiusSelector extends StatelessWidget {
+  final int radius;
+  final ValueChanged<int> onChanged;
+
+  const _RadiusSelector({required this.radius, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final options = const [500, 2000, 5000];
+    return Row(
+      children: [
+        const Icon(Icons.tune, size: 18),
+        const SizedBox(width: 8),
+        const Text('Rayon :'),
+        const SizedBox(width: 8),
+        DropdownButton<int>(
+          value: radius,
+          items: options
+              .map((r) => DropdownMenuItem(value: r, child: Text(r >= 1000 ? '${r ~/ 1000} km' : '${r} m')))
+              .toList(),
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+        ),
+        const Spacer(),
+        Text('Sélectionné: ${radius >= 1000 ? '${radius ~/ 1000} km' : '${radius} m'}'),
+      ],
     );
   }
 }

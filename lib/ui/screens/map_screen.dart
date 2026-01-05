@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/place_model.dart';
 import '../../utils/persistence.dart';
 
@@ -179,10 +180,41 @@ class _MapScreenState extends State<MapScreen> {
                                                   const SizedBox(height: 6),
                                                   Expanded(child: Text(p.address, overflow: TextOverflow.ellipsis, maxLines: 4)),
                                                   const SizedBox(height: 6),
+                                                  // Nouvelle ligne: petite vignette de l'image si disponible
                                                   Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                     children: [
-                                                      Text(p.temperature != null ? '${p.temperature!.round()}°C' : ''),
+                                                      p.photoUrl != null
+                                                          ? ClipRRect(
+                                                              borderRadius: BorderRadius.circular(8),
+                                                              child: CachedNetworkImage(
+                                                                imageUrl: p.photoUrl!,
+                                                                width: 80,
+                                                                height: 60,
+                                                                fit: BoxFit.cover,
+                                                                placeholder: (context, url) => Container(
+                                                                  width: 80,
+                                                                  height: 60,
+                                                                  color: Colors.grey[200],
+                                                                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                                                ),
+                                                                errorWidget: (context, url, error) => Container(
+                                                                  width: 80,
+                                                                  height: 60,
+                                                                  color: Colors.grey[300],
+                                                                  child: const Icon(Icons.image_not_supported),
+                                                                ),
+                                                              ),
+                                                            )
+                                                           : Container(
+                                                               width: 80,
+                                                               height: 60,
+                                                               decoration: BoxDecoration(
+                                                                 color: Colors.grey[300],
+                                                                 borderRadius: BorderRadius.circular(8),
+                                                               ),
+                                                               child: const Icon(Icons.place),
+                                                             ),
+                                                      const Spacer(),
                                                       Row(
                                                         children: [
                                                           IconButton(
