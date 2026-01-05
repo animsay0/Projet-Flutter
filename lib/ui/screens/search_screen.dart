@@ -3,13 +3,15 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:projet_flutter/data/models/trip.dart';
 import '../../data/models/place_model.dart';
 import '../../services/place_service.dart';
 import '../../utils/persistence.dart';
 import 'add_trip_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final Function(Trip) onAddTrip;
+  const SearchScreen({super.key, required this.onAddTrip});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -197,7 +199,7 @@ class _SearchScreenState extends State<SearchScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AddTripScreen(place: place),
+        builder: (_) => AddTripScreen(place: place, onAddTrip: widget.onAddTrip),
       ),
     );
   }
@@ -357,10 +359,10 @@ class _ApiInfoCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
-        children: const [
-          Icon(Icons.cloud, size: 18),
-          SizedBox(width: 8),
-          Expanded(child: Text('Recherche Foursquare + météo OpenWeatherMap')),
+        children: [
+          const Icon(Icons.cloud, size: 18),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('Recherche Foursquare + météo OpenWeatherMap')),
         ],
       ),
     );
@@ -429,6 +431,7 @@ class _PlaceCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        onTap: () => onTap(place),
         leading: place.photoUrl != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(8),
@@ -460,15 +463,10 @@ class _PlaceCard extends StatelessWidget {
         title: Text(place.name),
         subtitle: Text(subtitle),
         isThreeLine: isThreeLine,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.bookmark_add_outlined),
-              onPressed: () => onSave(place),
-            ),
-            const Icon(Icons.chevron_right),
-          ],
+        trailing: IconButton(
+          icon: const Icon(Icons.bookmark_border),
+          onPressed: () => onSave(place),
+          tooltip: "Sauvegarder le lieu",
         ),
         onTap: () => onTap(place),
       ),

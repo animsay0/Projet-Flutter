@@ -22,4 +22,30 @@ class Trip {
     this.notes,
     this.gpsCoordinates,
   });
+
+  Trip copyWith({
+    int? id,
+    String? title,
+    String? location,
+    String? date,
+    String? imageUrl,
+    int? rating,
+    String? weather,
+    String? temperature,
+    String? notes,
+    String? gpsCoordinates,
+  }) {
+    return Trip(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      location: location ?? this.location,
+      date: date ?? this.date,
+      imageUrl: imageUrl ?? this.imageUrl,
+      rating: rating ?? this.rating,
+      weather: weather ?? this.weather,
+      temperature: temperature ?? this.temperature,
+      notes: notes ?? this.notes,
+      gpsCoordinates: gpsCoordinates ?? this.gpsCoordinates,
+    );
+  }
 }
