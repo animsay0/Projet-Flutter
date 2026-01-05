@@ -375,6 +375,18 @@ class _PlaceCard extends StatelessWidget {
     required this.onSave,
   });
 
+  Widget _buildPlaceholder(BuildContext context) {
+    return Container(
+      width: 56,
+      height: 56,
+      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      child: Icon(
+        Icons.place,
+        color: Theme.of(context).primaryColor.withOpacity(0.4),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Construire le sous-titre de façon conditionnelle
@@ -398,20 +410,11 @@ class _PlaceCard extends StatelessWidget {
                   width: 56,
                   height: 56,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 56,
-                    height: 56,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.image_not_supported),
-                  ),
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildPlaceholder(context),
                 ),
               )
-            : Container(
-                width: 56,
-                height: 56,
-                color: Colors.grey[300],
-                child: const Icon(Icons.place),
-              ),
+            : _buildPlaceholder(context),
         title: Text(place.name),
         subtitle: Text(subtitle),
         isThreeLine: isThreeLine,

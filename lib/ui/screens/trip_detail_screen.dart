@@ -49,6 +49,19 @@ class _Header extends StatelessWidget {
 
   const _Header({required this.trip});
 
+  Widget _buildPlaceholder(BuildContext context) {
+    return Container(
+      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      child: Center(
+        child: Icon(
+          Icons.landscape_rounded,
+          size: 100,
+          color: Theme.of(context).primaryColor.withOpacity(0.4),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
@@ -84,10 +97,10 @@ class _Header extends StatelessWidget {
                 fit: BoxFit.cover,
                 loadingBuilder: (context, child, progress) {
                   if (progress == null) return child;
-                  return Container(color: Colors.grey[400]);
+                  return _buildPlaceholder(context);
                 },
-                errorBuilder: (_, __, ___) =>
-                const Center(child: Icon(Icons.image_not_supported)),
+                errorBuilder: (context, __, ___) =>
+                    _buildPlaceholder(context),
               ),
             ),
             Container(
@@ -393,4 +406,3 @@ class _PlaceInfoCard extends StatelessWidget {
     );
   }
 }
-
