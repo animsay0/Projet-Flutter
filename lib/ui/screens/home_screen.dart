@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
 import 'trip_detail_screen.dart';
@@ -157,7 +159,7 @@ class _StatCard extends StatelessWidget {
       width: 100,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withAlpha((0.2 * 255).round()),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -304,7 +306,7 @@ class _TripCard extends StatelessWidget {
 
   const _TripCard({required this.trip, required this.onDeleteTrip});
 
-  Widget _buildImage(String url) {
+  Widget _buildImage(BuildContext context, String url) {
     if (url.startsWith('http')) {
       return Image.network(
         url,
@@ -321,7 +323,19 @@ class _TripCard extends StatelessWidget {
         },
         errorBuilder: (ctx, err, stack) => _buildPlaceholder(ctx),
       );
+    } else if (url.startsWith('data:image/')) {
+      try {
+        final base64Str = url.split(',')[1];
+        final bytes = base64Decode(base64Str);
+        return Image.memory(bytes, height: 180, width: double.infinity, fit: BoxFit.cover);
+      } catch (_) {
+        return _buildPlaceholder(context);
+      }
     } else {
+      // url is a local path on device; only use Image.file when not on web
+      if (kIsWeb) {
+        return _buildPlaceholder(context);
+      }
       return Image.file(
         File(url),
         height: 180,
@@ -351,14 +365,14 @@ class _TripCard extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withAlpha((0.1 * 255).round()),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Hero(
               tag: 'trip-${trip.id}',
               child: trip.imageUrls.isNotEmpty
-                  ? _buildImage(trip.imageUrls.first)
+                  ? _buildImage(context, trip.imageUrls.first)
                   : _buildPlaceholder(context),
             ),
             Padding(
@@ -401,12 +415,12 @@ class _TripCard extends StatelessWidget {
     return Container(
       height: 180,
       width: double.infinity,
-      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      color: Theme.of(context).primaryColor.withAlpha((0.1 * 255).round()),
       child: Center(
         child: Icon(
           Icons.landscape_rounded,
           size: 64,
-          color: Theme.of(context).primaryColor.withOpacity(0.4),
+          color: Theme.of(context).primaryColor.withAlpha((0.4 * 255).round()),
         ),
       ),
     );

@@ -117,17 +117,28 @@ class _MapScreenState extends State<MapScreen> {
               ),
               if (_places.isNotEmpty)
                 MarkerLayer(
-                  markers: _places.map((p) {
-                    return Marker(
-                      point: ll.LatLng(p.lat, p.lng),
-                      width: 40,
-                      height: 40,
-                      child: GestureDetector(
-                        onTap: () => _showPlaceDetails(p),
-                        child: const Icon(Icons.location_on, size: 40, color: Colors.red),
+                  markers: [
+                    // markers for saved places
+                    ..._places.map((p) {
+                      return Marker(
+                        point: ll.LatLng(p.lat, p.lng),
+                        width: 40,
+                        height: 40,
+                        child: GestureDetector(
+                          onTap: () => _showPlaceDetails(p),
+                          child: const Icon(Icons.location_on, size: 40, color: Colors.red),
+                        ),
+                      );
+                    }),
+                    // marker for the initial location (green) if provided
+                    if (widget.initialLocation != null)
+                      Marker(
+                        point: widget.initialLocation!,
+                        width: 40,
+                        height: 40,
+                        child: const Icon(Icons.place, size: 40, color: Colors.green),
                       ),
-                    );
-                  }).toList(),
+                  ],
                 ),
             ],
           ),
@@ -159,10 +170,19 @@ class _MapScreenState extends State<MapScreen> {
                           if (widget.initialLocation != null)
                             TextButton.icon(
                               onPressed: () {
-                                _mapController.move(widget.initialLocation!, 14);
+                                if (widget.initialLocation != null) {
+                                  _mapController.move(widget.initialLocation!, 14);
+                                }
                               },
                               icon: const Icon(Icons.my_location),
                               label: const Text('Centrer'),
+                            ),
+                          const SizedBox(width: 8),
+                          if (widget.initialLocation != null)
+                            Chip(
+                              avatar: const Icon(Icons.place, color: Colors.white, size: 16),
+                              backgroundColor: Colors.green,
+                              label: Text('${widget.initialLocation!.latitude.toStringAsFixed(4)}, ${widget.initialLocation!.longitude.toStringAsFixed(4)}', style: const TextStyle(color: Colors.white)),
                             ),
                         ],
                       ),

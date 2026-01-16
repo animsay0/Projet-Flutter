@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
 
@@ -100,18 +102,27 @@ class _HeaderState extends State<_Header> {
     if (url.startsWith('http')) {
       return Image.network(url, fit: BoxFit.cover);
     } else {
+      if (url.startsWith('data:image/')) {
+        try {
+          final bytes = base64Decode(url.split(',')[1]);
+          return Image.memory(bytes, fit: BoxFit.cover);
+        } catch (_) {
+          return _buildPlaceholder(context);
+        }
+      }
+      if (kIsWeb) return _buildPlaceholder(context);
       return Image.file(File(url), fit: BoxFit.cover);
     }
   }
 
   Widget _buildPlaceholder(BuildContext context) {
     return Container(
-      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      color: Theme.of(context).primaryColor.withAlpha((0.1 * 255).round()),
       child: Center(
         child: Icon(
           Icons.landscape_rounded,
           size: 100,
-          color: Theme.of(context).primaryColor.withOpacity(0.4),
+          color: Theme.of(context).primaryColor.withAlpha((0.4 * 255).round()),
         ),
       ),
     );
@@ -166,7 +177,7 @@ class _HeaderState extends State<_Header> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.6),
+                    Colors.black.withAlpha((0.6 * 255).round()),
                     Colors.transparent,
                   ],
                   begin: Alignment.bottomCenter,
@@ -189,7 +200,7 @@ class _HeaderState extends State<_Header> {
                       shape: BoxShape.circle,
                       color: _currentPage == index
                           ? Colors.white
-                          : Colors.white.withOpacity(0.5),
+                          : Colors.white.withAlpha((0.5 * 255).round()),
                     ),
                   );
                 }),
