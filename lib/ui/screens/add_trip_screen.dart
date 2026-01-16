@@ -39,6 +39,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
   // store both original paths (when available) and processed bytes for display
   final List<String> _photoPaths = [];
   final List<Uint8List> _photoBytes = [];
+  Uint8List? _coverBytes;
   ll.LatLng? _pickedPosition;
 
   // helper: process picked image (crop to 4:3 center, resize to max width)
@@ -80,50 +81,125 @@ class _AddTripScreenState extends State<AddTripScreen> {
     }
   }
 
+  // Simplify long place/address strings returned by APIs.
+  // Strategy: split by comma, then join leading segments until maxChars is reached.
+  String _simplifyPlaceString(String s, {int maxChars = 50}) {
+    if (s.trim().length <= maxChars) return s.trim();
+    final parts = s.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return s.trim().substring(0, maxChars - 3).trim() + '...';
+    String result = parts[0];
+    for (var i = 1; i < parts.length; i++) {
+      final next = parts[i];
+      if (result.length + 2 + next.length <= maxChars) {
+        result = '$result, $next';
+      } else {
+        final remaining = maxChars - result.length - 5; // leave space for ', ' and '...'
+        if (remaining > 5) {
+          final truncated = next.substring(0, remaining).trim();
+          result = '$result, ${truncated}...';
+        }
+        break;
+      }
+    }
+    if (result.length > maxChars) result = result.substring(0, maxChars - 3).trim() + '...';
+    return result;
+  }
+
+  // Ensure saved strings are within limits (truncate if necessary).
+  String _truncateForSave(String s, int maxChars) {
+    if (s.length <= maxChars) return s;
+    return s.substring(0, maxChars - 3).trim() + '...';
+  }
+
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.place?.name);
-    _locationController = TextEditingController(text: widget.place?.address);
+    // Pré-remplir les champs avec une version simplifiée pour éviter des chaînes trop longues
+    _titleController = TextEditingController(text: widget.place?.name != null ? _simplifyPlaceString(widget.place!.name) : null);
+    _locationController = TextEditingController(text: widget.place?.address != null ? _simplifyPlaceString(widget.place!.address, maxChars: 70) : null);
     _notesController = TextEditingController();
     _selectedDate = DateTime.now();
+    // No local cover bytes initially; if widget.place has a network photo it will be shown by PlaceHeader
   }
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _locationController.dispose();
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickDate() async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-    );
+  Future<void> _pickCoverImage(ImageSource source) async {
+    final XFile? file = await _picker.pickImage(source: source, imageQuality: 80);
+    if (file == null) return;
+    final processed = await _processPickedImage(file);
+    if (processed == null) return;
     if (!mounted) return;
-    if (pickedDate != null && pickedDate != _selectedDate) {
-      setState(() {
-        _selectedDate = pickedDate;
-      });
-    }
+    setState(() {
+      _coverBytes = processed;
+      // cover path intentionally not stored locally (not used currently)
+    });
   }
+
+  void _showCoverOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Prendre une photo de couverture'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickCoverImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choisir depuis la galerie'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickCoverImage(ImageSource.gallery);
+                },
+              ),
+              if (_coverBytes != null || widget.place?.photoUrl != null)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('Supprimer la photo de couverture', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() { _coverBytes = null; });
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
 
   void _saveTrip() {
     if (_formKey.currentState!.validate()) {
       // Persist processed images as data URIs so they're portable across platforms
-      final List<String> imageUrls = _photoBytes.map((b) => 'data:image/jpeg;base64,${base64Encode(b)}').toList();
-      if (widget.place?.photoUrl != null) {
+      final List<String> imageUrls = [];
+      // cover first if present
+      if (_coverBytes != null) {
+        imageUrls.add('data:image/jpeg;base64,${base64Encode(_coverBytes!)}');
+      }
+      // then other photos
+      imageUrls.addAll(_photoBytes.map((b) => 'data:image/jpeg;base64,${base64Encode(b)}'));
+      // if there are still no images but the place has a photoUrl, keep compatibility with previous behavior
+      if (imageUrls.isEmpty && widget.place?.photoUrl != null) {
+        imageUrls.add(widget.place!.photoUrl!);
+      } else if (widget.place?.photoUrl != null && imageUrls.isNotEmpty) {
+        // preserve previous behavior of appending the place photo when other images exist
         imageUrls.add(widget.place!.photoUrl!);
       }
 
+      // Ensure saved fields are capped
+      final savedTitle = _truncateForSave(_titleController.text.trim(), 60);
+      final savedLocation = _truncateForSave(_locationController.text.trim(), 100);
+
       final newTrip = Trip(
         id: DateTime.now().millisecondsSinceEpoch, // Unique ID
-        title: _titleController.text,
-        location: _locationController.text,
+        title: savedTitle,
+        location: savedLocation,
         date: DateFormat('dd/MM/yyyy').format(_selectedDate),
         imageUrls: imageUrls,
         rating: _rating.toInt(),
@@ -221,6 +297,21 @@ class _AddTripScreenState extends State<AddTripScreen> {
     }
   }
 
+  Future<void> _pickDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (!mounted) return;
+    if (pickedDate != null && pickedDate != _selectedDate) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,7 +331,8 @@ class _AddTripScreenState extends State<AddTripScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _PlaceHeader(place: widget.place),
+              // pass coverBytes and callback to header so user can pick/replace cover image
+              _PlaceHeader(place: widget.place, coverBytes: _coverBytes, onPickCover: _showCoverOptions),
               const SizedBox(height: 16),
               _FormCard(
                 titleController: _titleController,
@@ -335,8 +427,10 @@ class _AddTripScreenState extends State<AddTripScreen> {
 
 class _PlaceHeader extends StatelessWidget {
   final Place? place;
+  final Uint8List? coverBytes;
+  final VoidCallback onPickCover;
 
-  const _PlaceHeader({this.place});
+  const _PlaceHeader({this.place, this.coverBytes, required this.onPickCover});
 
   Widget _buildPlaceholder(BuildContext context) {
     return Container(
@@ -358,17 +452,28 @@ class _PlaceHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: place?.photoUrl != null
-              ? Image.network(
-                  place!.photoUrl!,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (ctx, err, stack) => _buildPlaceholder(context),
-                )
-              : _buildPlaceholder(context),
+        GestureDetector(
+          onTap: onPickCover,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: coverBytes != null
+                ? Image.memory(
+                    coverBytes!,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, stack) => _buildPlaceholder(context),
+                  )
+                : place?.photoUrl != null
+                    ? Image.network(
+                        place!.photoUrl!,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, err, stack) => _buildPlaceholder(context),
+                      )
+                    : _buildPlaceholder(context),
+          ),
         ),
       ],
     );
@@ -399,16 +504,16 @@ class _FormCard extends StatelessWidget {
           children: [
             TextFormField(
               controller: titleController,
-              decoration: const InputDecoration(labelText: "Titre"),
-              validator: (value) =>
-              value!.isEmpty ? "Le titre ne peut pas être vide" : null,
+              maxLength: 60,
+              decoration: const InputDecoration(labelText: "Titre", counterText: ''),
+              validator: (value) => value!.isEmpty ? "Le titre ne peut pas être vide" : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: locationController,
-              decoration: const InputDecoration(labelText: "Lieu"),
-              validator: (value) =>
-              value!.isEmpty ? "Le lieu ne peut pas être vide" : null,
+              maxLength: 100,
+              decoration: const InputDecoration(labelText: "Lieu", counterText: ''),
+              validator: (value) => value!.isEmpty ? "Le lieu ne peut pas être vide" : null,
             ),
             const SizedBox(height: 12),
             ListTile(

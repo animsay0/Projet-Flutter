@@ -542,14 +542,6 @@ class _PlaceInfoCard extends StatelessWidget {
                 Text("Popularité : ★★★★★"),
                 Text("Avis : 3890+ avis"),
                 SizedBox(height: 8),
-                Text(
-                  "Données Foursquare Places API",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF4F46E5),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
               ],
             ),
           ),
