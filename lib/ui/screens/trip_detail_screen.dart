@@ -1,65 +1,53 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart' as ll;
-import 'package:projet_flutter/ui/screens/map_screen.dart';
 import '../../data/models/trip.dart';
 
-class TripDetailScreen extends StatefulWidget {
+class TripDetailScreen extends StatelessWidget {
   final Trip trip;
+  final Function(int) onDeleteTrip;
 
   const TripDetailScreen({
     super.key,
     required this.trip,
+    required this.onDeleteTrip,
   });
 
-  @override
-  State<TripDetailScreen> createState() => _TripDetailScreenState();
-}
-
-class _TripDetailScreenState extends State<TripDetailScreen> {
-  final ImagePicker _picker = ImagePicker();
-  final List<XFile> _photos = [];
-
-  Future<void> _pickImageFromCamera() async {
-    final XFile? file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (file != null) {
-      setState(() => _photos.add(file));
-    }
-  }
-
-  Future<void> _pickImageFromGallery() async {
-    final XFile? file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file != null) {
-      setState(() => _photos.add(file));
-    }
-  }
-
-  Future<void> _getCurrentLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission de localisation refusée')));
-      return;
-    }
-
-    final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-    // Ouvrir la MapScreen centrée sur la position courante
-    Navigator.push(context, MaterialPageRoute(builder: (_) => MapScreen(initialLocation: ll.LatLng(pos.latitude, pos.longitude))));
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Supprimer la sortie ?"),
+          content: const Text("Cette action est irréversible."),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Annuler"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                onDeleteTrip(trip.id);
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop(); // Go back to the home screen
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final trip = widget.trip;
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(
         slivers: [
-          _Header(trip: trip),
+          _Header(trip: trip, onDelete: () => _showDeleteConfirmation(context)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -69,57 +57,6 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   const SizedBox(height: 16),
                   if (trip.gpsCoordinates != null)
                     _GpsCard(trip: trip),
-                  const SizedBox(height: 16),
-
-                  // CAMERA & GALLERY ACTIONS
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Photos & localisation', style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Row(children: [
-                            ElevatedButton.icon(
-                              onPressed: _pickImageFromCamera,
-                              icon: const Icon(Icons.camera_alt),
-                              label: const Text('Prendre photo'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton.icon(
-                              onPressed: _pickImageFromGallery,
-                              icon: const Icon(Icons.photo_library),
-                              label: const Text('Choisir'),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: _getCurrentLocation,
-                              icon: const Icon(Icons.my_location),
-                              label: const Text('Ma position'),
-                            ),
-                          ]),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 90,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemBuilder: (_, i) {
-                                final file = _photos[i];
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(File(file.path), width: 120, height: 80, fit: BoxFit.cover),
-                                );
-                              },
-                              separatorBuilder: (_, __) => const SizedBox(width: 8),
-                              itemCount: _photos.length,
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
-                  ),
-
                   const SizedBox(height: 16),
                   _WeatherCard(trip: trip),
                   if (trip.notes != null) ...[
@@ -139,10 +76,33 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 }
 
 
-class _Header extends StatelessWidget {
+class _Header extends StatefulWidget {
   final Trip trip;
+  final VoidCallback onDelete;
 
-  const _Header({required this.trip});
+  const _Header({required this.trip, required this.onDelete});
+
+  @override
+  State<_Header> createState() => _HeaderState();
+}
+
+class _HeaderState extends State<_Header> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildImage(String url) {
+    if (url.startsWith('http')) {
+      return Image.network(url, fit: BoxFit.cover);
+    } else {
+      return Image.file(File(url), fit: BoxFit.cover);
+    }
+  }
 
   Widget _buildPlaceholder(BuildContext context) {
     return Container(
@@ -178,7 +138,7 @@ class _Header extends StatelessWidget {
         ),
         IconButton(
           icon: const Icon(Icons.delete_outline, color: Colors.white),
-          onPressed: () {},
+          onPressed: widget.onDelete,
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
@@ -186,28 +146,53 @@ class _Header extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Hero(
-              tag: 'trip-${trip.id}',
-              child: Image.network(
-                trip.imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return _buildPlaceholder(context);
-                },
-                errorBuilder: (context, __, ___) =>
-                    _buildPlaceholder(context),
-              ),
+              tag: 'trip-${widget.trip.id}',
+              child: widget.trip.imageUrls.isNotEmpty
+                  ? PageView.builder(
+                      controller: _pageController,
+                      itemCount: widget.trip.imageUrls.length,
+                      itemBuilder: (context, index) {
+                        return _buildImage(widget.trip.imageUrls[index]);
+                      },
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentPage = index;
+                        });
+                      },
+                    )
+                  : _buildPlaceholder(context),
             ),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color.fromRGBO(0, 0, 0, 0.6),
+                    Colors.black.withOpacity(0.6),
                     Colors.transparent,
                   ],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),
+              ),
+            ),
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(widget.trip.imageUrls.length, (index) {
+                  return Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _currentPage == index
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.5),
+                    ),
+                  );
+                }),
               ),
             ),
             Positioned(
@@ -218,7 +203,7 @@ class _Header extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    trip.title,
+                    widget.trip.title,
                     style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -228,16 +213,16 @@ class _Header extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      _Stars(rating: trip.rating),
+                      _Stars(rating: widget.trip.rating),
                       const SizedBox(width: 8),
                       Text(
-                        "(${trip.rating}/5)",
+                        "(${widget.trip.rating}/5)",
                         style: const TextStyle(color: Colors.white70),
                       ),
                       const Spacer(),
                       _WeatherBadge(
-                        weather: trip.weather,
-                        temperature: trip.temperature,
+                        weather: widget.trip.weather,
+                        temperature: widget.trip.temperature,
                       ),
                     ],
                   )

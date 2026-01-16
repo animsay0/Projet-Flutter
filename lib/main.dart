@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:projet_flutter/data/models/trip.dart';
+import 'package:projet_flutter/services/trip_service.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/search_screen.dart';
 import 'ui/screens/add_trip_screen.dart';
@@ -42,20 +43,48 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
-  final List<Trip> _trips = [];
+  List<Trip> _trips = [];
+  final TripService _tripService = TripService();
 
-  void _addTrip(Trip trip) {
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+  }
+
+  Future<void> _loadTrips() async {
+    final trips = await _tripService.loadTrips();
+    setState(() {
+      _trips = trips;
+    });
+  }
+
+  Future<void> _addTrip(Trip trip) async {
     setState(() {
       _trips.add(trip);
+    });
+    await _tripService.saveTrips(_trips);
+  }
+
+  Future<void> _deleteTrip(int tripId) async {
+    setState(() {
+      _trips.removeWhere((trip) => trip.id == tripId);
+    });
+    await _tripService.saveTrips(_trips);
+  }
+
+  void _onTripSaved() {
+    setState(() {
+      _currentIndex = 0; // Go to home screen
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final screens = [
-      HomeScreen(trips: _trips),
+      HomeScreen(trips: _trips, onDeleteTrip: _deleteTrip),
       SearchScreen(onAddTrip: _addTrip),
-      AddTripScreen(onAddTrip: _addTrip),
+      AddTripScreen(onAddTrip: _addTrip, onTripSaved: _onTripSaved),
       const MapScreen(),
     ];
 

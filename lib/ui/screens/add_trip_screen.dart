@@ -11,9 +11,15 @@ import 'package:projet_flutter/ui/screens/map_screen.dart';
 
 class AddTripScreen extends StatefulWidget {
   final Place? place;
-  final Function(Trip)? onAddTrip;
+  final Function(Trip) onAddTrip;
+  final VoidCallback? onTripSaved;
 
-  const AddTripScreen({super.key, this.place, this.onAddTrip});
+  const AddTripScreen({
+    super.key,
+    this.place,
+    required this.onAddTrip,
+    this.onTripSaved,
+  });
 
   @override
   State<AddTripScreen> createState() => _AddTripScreenState();
@@ -63,15 +69,17 @@ class _AddTripScreenState extends State<AddTripScreen> {
 
   void _saveTrip() {
     if (_formKey.currentState!.validate()) {
+      final List<String> imageUrls = _photos.map((photo) => photo.path).toList();
+      if (widget.place?.photoUrl != null) {
+        imageUrls.add(widget.place!.photoUrl!);
+      }
+
       final newTrip = Trip(
         id: DateTime.now().millisecondsSinceEpoch, // Unique ID
         title: _titleController.text,
         location: _locationController.text,
         date: DateFormat('dd/MM/yyyy').format(_selectedDate),
-        // If user selected/took photos, use first local file path, else fallback to place photoUrl or placeholder
-        imageUrl: _photos.isNotEmpty
-            ? _photos.first.path
-            : (widget.place?.photoUrl ?? "https://via.placeholder.com/1080"),
+        imageUrls: imageUrls,
         rating: _rating.toInt(),
         weather: widget.place?.weather ?? "",
         temperature: widget.place?.temperature?.toString() ?? "",
@@ -80,8 +88,13 @@ class _AddTripScreenState extends State<AddTripScreen> {
             ? '${_pickedPosition!.latitude},${_pickedPosition!.longitude}'
             : null,
       );
-      widget.onAddTrip?.call(newTrip);
-      Navigator.of(context).pop(); // Go back to the previous screen
+      widget.onAddTrip(newTrip);
+      
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      } else {
+        widget.onTripSaved?.call();
+      }
     }
   }
 
@@ -190,8 +203,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
                           label: const Text('Voir sur la carte'),
                         ),
                       ])
-                    ],
-                  ),
+                    ],                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -220,6 +232,21 @@ class _PlaceHeader extends StatelessWidget {
 
   const _PlaceHeader({this.place});
 
+  Widget _buildPlaceholder(BuildContext context) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      child: Center(
+        child: Icon(
+          Icons.landscape_rounded,
+          size: 64,
+          color: Theme.of(context).primaryColor.withOpacity(0.4),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -229,23 +256,13 @@ class _PlaceHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: place?.photoUrl != null
               ? Image.network(
-            place!.photoUrl!,
-            height: 200,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          )
-              : Container(
-            height: 200,
-            width: double.infinity,
-            color: Colors.grey[300],
-            child: const Center(
-              child: Icon(
-                Icons.image_not_supported,
-                size: 48,
-                color: Colors.white,
-              ),
-            ),
-          ),
+                  place!.photoUrl!,
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, err, stack) => _buildPlaceholder(context),
+                )
+              : _buildPlaceholder(context),
         ),
       ],
     );
