@@ -5,39 +5,58 @@ class Trip {
   final String title;
   final String location;
   final String date;
-  final String imageUrl;
+  final List<String> imageUrls;
   final int rating;
   final String weather;
   final String temperature;
   final String? notes;
   final String? gpsCoordinates;
 
+  // Optional: Data from Foursquare place
+  final String? placeCategory;
+  final double? placePopularity;
+  final int? placeTotalRatings;
+
   Trip({
     required this.id,
     required this.title,
     required this.location,
     required this.date,
-    required this.imageUrl,
+    required this.imageUrls,
     required this.rating,
     required this.weather,
     required this.temperature,
     this.notes,
     this.gpsCoordinates,
+    this.placeCategory,
+    this.placePopularity,
+    this.placeTotalRatings,
   });
 
   // Factory constructor to create a Trip object from a map
   factory Trip.fromJson(Map<String, dynamic> json) {
+    List<String> imageUrls = [];
+    if (json['imageUrls'] != null) {
+      imageUrls = List<String>.from(json['imageUrls']);
+    } else if (json['imageUrl'] != null) {
+      // Backward compatibility for old data model with a single imageUrl
+      imageUrls = [json['imageUrl'] as String];
+    }
+
     return Trip(
       id: json['id'],
       title: json['title'],
       location: json['location'],
       date: json['date'],
-      imageUrl: json['imageUrl'],
+      imageUrls: imageUrls,
       rating: json['rating'],
       weather: json['weather'],
       temperature: json['temperature'],
       notes: json['notes'],
       gpsCoordinates: json['gpsCoordinates'],
+      placeCategory: json['placeCategory'],
+      placePopularity: json['placePopularity'],
+      placeTotalRatings: json['placeTotalRatings'],
     );
   }
 
@@ -48,12 +67,15 @@ class Trip {
       'title': title,
       'location': location,
       'date': date,
-      'imageUrl': imageUrl,
+      'imageUrls': imageUrls,
       'rating': rating,
       'weather': weather,
       'temperature': temperature,
       'notes': notes,
       'gpsCoordinates': gpsCoordinates,
+      'placeCategory': placeCategory,
+      'placePopularity': placePopularity,
+      'placeTotalRatings': placeTotalRatings,
     };
   }
 

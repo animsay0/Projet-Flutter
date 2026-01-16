@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
 
@@ -74,11 +76,33 @@ class TripDetailScreen extends StatelessWidget {
 }
 
 
-class _Header extends StatelessWidget {
+class _Header extends StatefulWidget {
   final Trip trip;
   final VoidCallback onDelete;
 
   const _Header({required this.trip, required this.onDelete});
+
+  @override
+  State<_Header> createState() => _HeaderState();
+}
+
+class _HeaderState extends State<_Header> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildImage(String url) {
+    if (url.startsWith('http')) {
+      return Image.network(url, fit: BoxFit.cover);
+    } else {
+      return Image.file(File(url), fit: BoxFit.cover);
+    }
+  }
 
   Widget _buildPlaceholder(BuildContext context) {
     return Container(
@@ -114,7 +138,7 @@ class _Header extends StatelessWidget {
         ),
         IconButton(
           icon: const Icon(Icons.delete_outline, color: Colors.white),
-          onPressed: onDelete,
+          onPressed: widget.onDelete,
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
@@ -122,17 +146,21 @@ class _Header extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Hero(
-              tag: 'trip-${trip.id}',
-              child: Image.network(
-                trip.imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return _buildPlaceholder(context);
-                },
-                errorBuilder: (context, __, ___) =>
-                    _buildPlaceholder(context),
-              ),
+              tag: 'trip-${widget.trip.id}',
+              child: widget.trip.imageUrls.isNotEmpty
+                  ? PageView.builder(
+                      controller: _pageController,
+                      itemCount: widget.trip.imageUrls.length,
+                      itemBuilder: (context, index) {
+                        return _buildImage(widget.trip.imageUrls[index]);
+                      },
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentPage = index;
+                        });
+                      },
+                    )
+                  : _buildPlaceholder(context),
             ),
             Container(
               decoration: BoxDecoration(
@@ -147,6 +175,27 @@ class _Header extends StatelessWidget {
               ),
             ),
             Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(widget.trip.imageUrls.length, (index) {
+                  return Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _currentPage == index
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.5),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            Positioned(
               left: 16,
               right: 16,
               bottom: 20,
@@ -154,7 +203,7 @@ class _Header extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    trip.title,
+                    widget.trip.title,
                     style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -164,16 +213,16 @@ class _Header extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      _Stars(rating: trip.rating),
+                      _Stars(rating: widget.trip.rating),
                       const SizedBox(width: 8),
                       Text(
-                        "(${trip.rating}/5)",
+                        "(${widget.trip.rating}/5)",
                         style: const TextStyle(color: Colors.white70),
                       ),
                       const Spacer(),
                       _WeatherBadge(
-                        weather: trip.weather,
-                        temperature: trip.temperature,
+                        weather: widget.trip.weather,
+                        temperature: widget.trip.temperature,
                       ),
                     ],
                   )

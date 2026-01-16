@@ -69,14 +69,17 @@ class _AddTripScreenState extends State<AddTripScreen> {
 
   void _saveTrip() {
     if (_formKey.currentState!.validate()) {
+      final List<String> imageUrls = _photos.map((photo) => photo.path).toList();
+      if (widget.place?.photoUrl != null) {
+        imageUrls.add(widget.place!.photoUrl!);
+      }
+
       final newTrip = Trip(
         id: DateTime.now().millisecondsSinceEpoch, // Unique ID
         title: _titleController.text,
         location: _locationController.text,
         date: DateFormat('dd/MM/yyyy').format(_selectedDate),
-        imageUrl: _photos.isNotEmpty
-            ? _photos.first.path
-            : (widget.place?.photoUrl ?? "https://via.placeholder.com/1080"),
+        imageUrls: imageUrls,
         rating: _rating.toInt(),
         weather: widget.place?.weather ?? "",
         temperature: widget.place?.temperature?.toString() ?? "",

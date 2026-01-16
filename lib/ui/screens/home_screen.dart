@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
 import 'trip_detail_screen.dart';
@@ -302,6 +304,35 @@ class _TripCard extends StatelessWidget {
 
   const _TripCard({required this.trip, required this.onDeleteTrip});
 
+  Widget _buildImage(String url) {
+    if (url.startsWith('http')) {
+      return Image.network(
+        url,
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 180,
+            color: Colors.grey[300],
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        },
+        errorBuilder: (ctx, err, stack) => _buildPlaceholder(ctx),
+      );
+    } else {
+      return Image.file(
+        File(url),
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => _buildPlaceholder(ctx),
+      );
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -326,21 +357,9 @@ class _TripCard extends StatelessWidget {
           children: [
             Hero(
               tag: 'trip-${trip.id}',
-              child: Image.network(
-                trip.imageUrl,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    height: 180,
-                    color: Colors.grey[300],
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                },
-                errorBuilder: (ctx, err, stack) => _buildPlaceholder(context),
-              ),
+              child: trip.imageUrls.isNotEmpty
+                  ? _buildImage(trip.imageUrls.first)
+                  : _buildPlaceholder(context),
             ),
             Padding(
               padding: const EdgeInsets.all(12),
