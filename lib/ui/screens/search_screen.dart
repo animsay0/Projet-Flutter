@@ -218,6 +218,9 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // plus épuré : pas d'ombre et titre discret
+        elevation: 0,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text("Rechercher un lieu"),
       ),
       body: Column(
@@ -233,8 +236,11 @@ class _SearchScreenState extends State<SearchScreen> {
               });
             },
           ),
-          _NearbyButton(
-            onPressed: _searchNearby,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _NearbyButton(
+              onPressed: _searchNearby,
+            ),
           ),
           // n'afficher le sélecteur de rayon que si l'utilisateur a choisi 'Lieux à proximité'
           if (_isNearbyMode)
@@ -283,7 +289,9 @@ class _SearchBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Recherche : TextField épuré avec icônes
           Row(
             children: [
               Expanded(
@@ -291,40 +299,61 @@ class _SearchBar extends StatelessWidget {
                   controller: controller,
                   onChanged: (_) => onChanged?.call(),
                   onSubmitted: (_) => onSearch(),
+                  textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: "Nom du lieu...",
                     prefixIcon: const Icon(Icons.search),
+                    suffixIcon: controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              controller.clear();
+                              onChanged?.call();
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Theme.of(context).cardColor,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                     border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: onSearch,
-                child: const Text("OK"),
+              // Bouton search compact
+              SizedBox(
+                height: 44,
+                width: 44,
+                child: ElevatedButton(
+                  onPressed: onSearch,
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Icon(Icons.search),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          SegmentedButton<String?>(
-            segments: const [
-              ButtonSegment(
-                value: 'FR',
-                label: Text("France"),
-                icon: Icon(Icons.flag),
+          // Chips pour sélectionner France / Monde (plus discret que SegmentedButton)
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('France'),
+                selected: selectedCountry == 'FR',
+                onSelected: (s) => onCountryChanged(s ? 'FR' : null),
               ),
-              ButtonSegment(
-                value: null,
-                label: Text("Monde"),
-                icon: Icon(Icons.public),
+              ChoiceChip(
+                label: const Text('Monde'),
+                selected: selectedCountry == null,
+                onSelected: (s) => onCountryChanged(s ? null : 'FR'),
               ),
             ],
-            selected: {selectedCountry},
-            onSelectionChanged: (value) {
-              onCountryChanged(value.first);
-            },
           ),
         ],
       ),
@@ -342,14 +371,15 @@ class _NearbyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: onPressed,
-          icon: const Icon(Icons.location_on),
-          label: const Text("Lieux à proximité"),
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.location_on),
+        label: const Text("Près de moi"),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       ),
     );
@@ -364,12 +394,17 @@ class _ApiInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.cloud, size: 18),
+          const Icon(Icons.cloud, size: 18, color: Colors.grey),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Recherche Foursquare + météo OpenWeatherMap')),
+          Expanded(
+            child: Text(
+              'Recherche Foursquare • météo OpenWeatherMap',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+            ),
+          ),
         ],
       ),
     );
@@ -392,13 +427,20 @@ class _ResultsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (results.isEmpty) {
-      return const Center(
-        child: Text("Aucun résultat"),
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.search_off, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
+            Text("Aucun résultat", style: TextStyle(color: Colors.grey)),
+          ],
+        ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: results.length,
       itemBuilder: (context, index) {
         return _PlaceCard(
@@ -428,7 +470,10 @@ class _PlaceCard extends StatelessWidget {
     return Container(
       width: 56,
       height: 56,
-      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Icon(
         Icons.place,
         color: Theme.of(context).primaryColor.withOpacity(0.4),
@@ -449,44 +494,68 @@ class _PlaceCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: place.photoUrl != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: place.photoUrl!,
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    width: 56,
-                    height: 56,
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    width: 56,
-                    height: 56,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.image_not_supported),
-                  ),
-                ),
-              )
-            : Container(
-                width: 56,
-                height: 56,
-                color: Colors.grey[300],
-                child: const Icon(Icons.place),
-              ),
-        title: Text(place.name),
-        subtitle: Text(subtitle),
-        isThreeLine: isThreeLine,
-        trailing: IconButton(
-          icon: const Icon(Icons.bookmark_border),
-          onPressed: () => onSave(place),
-          tooltip: "Sauvegarder le lieu",
-        ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () => onTap(place),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Image
+              if (place.photoUrl != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: place.photoUrl!,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 64,
+                      height: 64,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 64,
+                      height: 64,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image_not_supported),
+                    ),
+                  ),
+                )
+              else
+                _buildPlaceholder(context),
+              const SizedBox(width: 12),
+              // Texte
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(place.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Text(subtitle, style: TextStyle(color: Colors.grey[700]), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Actions
+              Column(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.bookmark_border),
+                    onPressed: () => onSave(place),
+                    tooltip: 'Sauvegarder',
+                  ),
+                  const SizedBox(height: 4),
+                  const Icon(Icons.chevron_right, color: Colors.grey),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -503,10 +572,10 @@ class _RadiusSelector extends StatelessWidget {
     final options = const [500, 2000, 5000];
     return Row(
       children: [
-        const Icon(Icons.tune, size: 18),
+        const Icon(Icons.tune, size: 18, color: Colors.grey),
         const SizedBox(width: 8),
-        const Text('Rayon :'),
-        const SizedBox(width: 8),
+        Text('Rayon', style: TextStyle(color: Colors.grey[700])),
+        const SizedBox(width: 12),
         DropdownButton<int>(
           value: radius,
           items: options
@@ -517,7 +586,7 @@ class _RadiusSelector extends StatelessWidget {
           },
         ),
         const Spacer(),
-        Text('Sélectionné: ${radius >= 1000 ? '${radius ~/ 1000} km' : '${radius} m'}'),
+        Text('${radius >= 1000 ? '${radius ~/ 1000} km' : '${radius} m'}', style: TextStyle(color: Colors.grey[600])),
       ],
     );
   }
