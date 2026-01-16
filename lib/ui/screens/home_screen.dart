@@ -4,7 +4,8 @@ import 'trip_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Trip> trips;
-  const HomeScreen({super.key, required this.trips});
+  final Function(int) onDeleteTrip;
+  const HomeScreen({super.key, required this.trips, required this.onDeleteTrip});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -60,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedRating: _selectedRating,
             onFilterChanged: _onFilterChanged,
           ),
-          Expanded(child: _TripList(trips: _filteredTrips)),
+          Expanded(child: _TripList(trips: _filteredTrips, onDeleteTrip: widget.onDeleteTrip)),
         ],
       ),
     );
@@ -268,8 +269,9 @@ class _FilterChip extends StatelessWidget {
 
 class _TripList extends StatelessWidget {
   final List<Trip> trips;
+  final Function(int) onDeleteTrip;
 
-  const _TripList({required this.trips});
+  const _TripList({required this.trips, required this.onDeleteTrip});
 
   @override
   Widget build(BuildContext context) {
@@ -286,7 +288,7 @@ class _TripList extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       itemCount: trips.length,
       itemBuilder: (context, index) {
-        return _TripCard(trip: trips[index]);
+        return _TripCard(trip: trips[index], onDeleteTrip: onDeleteTrip);
       },
     );
   }
@@ -296,8 +298,9 @@ class _TripList extends StatelessWidget {
 
 class _TripCard extends StatelessWidget {
   final Trip trip;
+  final Function(int) onDeleteTrip;
 
-  const _TripCard({required this.trip});
+  const _TripCard({required this.trip, required this.onDeleteTrip});
 
   @override
   Widget build(BuildContext context) {
@@ -306,7 +309,7 @@ class _TripCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TripDetailScreen(trip: trip),
+            builder: (_) => TripDetailScreen(trip: trip, onDeleteTrip: onDeleteTrip),
           ),
         );
       },
@@ -336,11 +339,7 @@ class _TripCard extends StatelessWidget {
                     child: const Center(child: CircularProgressIndicator()),
                   );
                 },
-                errorBuilder: (_, __, ___) => Container(
-                  height: 180,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.image_not_supported, size: 40),
-                ),
+                errorBuilder: (ctx, err, stack) => _buildPlaceholder(context),
               ),
             ),
             Padding(
@@ -378,7 +377,23 @@ class _TripCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildPlaceholder(BuildContext context) {
+    return Container(
+      height: 180,
+      width: double.infinity,
+      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      child: Center(
+        child: Icon(
+          Icons.landscape_rounded,
+          size: 64,
+          color: Theme.of(context).primaryColor.withOpacity(0.4),
+        ),
+      ),
+    );
+  }
 }
+
 
 /* ===================== STARS ===================== */
 

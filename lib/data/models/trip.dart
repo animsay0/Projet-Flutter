@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Trip {
   final int id;
   final String title;
@@ -23,29 +25,48 @@ class Trip {
     this.gpsCoordinates,
   });
 
-  Trip copyWith({
-    int? id,
-    String? title,
-    String? location,
-    String? date,
-    String? imageUrl,
-    int? rating,
-    String? weather,
-    String? temperature,
-    String? notes,
-    String? gpsCoordinates,
-  }) {
+  // Factory constructor to create a Trip object from a map
+  factory Trip.fromJson(Map<String, dynamic> json) {
     return Trip(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      location: location ?? this.location,
-      date: date ?? this.date,
-      imageUrl: imageUrl ?? this.imageUrl,
-      rating: rating ?? this.rating,
-      weather: weather ?? this.weather,
-      temperature: temperature ?? this.temperature,
-      notes: notes ?? this.notes,
-      gpsCoordinates: gpsCoordinates ?? this.gpsCoordinates,
+      id: json['id'],
+      title: json['title'],
+      location: json['location'],
+      date: json['date'],
+      imageUrl: json['imageUrl'],
+      rating: json['rating'],
+      weather: json['weather'],
+      temperature: json['temperature'],
+      notes: json['notes'],
+      gpsCoordinates: json['gpsCoordinates'],
     );
   }
+
+  // Method to convert a Trip object to a map
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'location': location,
+      'date': date,
+      'imageUrl': imageUrl,
+      'rating': rating,
+      'weather': weather,
+      'temperature': temperature,
+      'notes': notes,
+      'gpsCoordinates': gpsCoordinates,
+    };
+  }
+
+  // Helper to encode a list of trips to a list of strings
+  static String encode(List<Trip> trips) => json.encode(
+        trips
+            .map<Map<String, dynamic>>((trip) => trip.toJson())
+            .toList(),
+      );
+
+  // Helper to decode a string into a list of trips
+  static List<Trip> decode(String trips) =>
+      (json.decode(trips) as List<dynamic>)
+          .map<Trip>((item) => Trip.fromJson(item))
+          .toList();
 }
