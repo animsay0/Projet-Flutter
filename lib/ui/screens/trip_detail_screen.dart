@@ -95,8 +95,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   const SizedBox(height: 16),
                   if (_trip.imageUrls.isNotEmpty) _PhotosCard(imageUrls: _trip.imageUrls),
                   const SizedBox(height: 16),
-                  // Weather card: only show if we have weather information
-                  if (_trip.weather.isNotEmpty) _WeatherCard(trip: _trip),
+                  // Weather section intentionally hidden in detail view (kept in list card)
                   if (_trip.notes != null) ...[
                     const SizedBox(height: 16),
                     _NotesCard(notes: _trip.notes!),
@@ -232,12 +231,7 @@ class _HeaderState extends State<_Header> {
                         style: const TextStyle(color: Colors.white70),
                       ),
                       const Spacer(),
-                      // Show weather badge only if we have weather info
-                      if (widget.trip.weather.isNotEmpty)
-                        _WeatherBadge(
-                          weather: widget.trip.weather,
-                          temperature: widget.trip.temperature,
-                        ),
+                      // Weather badge hidden in detail header to avoid redundant section
                     ],
                   )
                 ],
