@@ -16,12 +16,16 @@ class AddTripScreen extends StatefulWidget {
   final Place? place;
   final Function(Trip) onAddTrip;
   final VoidCallback? onTripSaved;
+  final Trip? trip; // optional trip for edit mode
+  final Function(Trip)? onUpdateTrip; // optional update callback for backward compatibility
 
   const AddTripScreen({
     super.key,
     this.place,
     required this.onAddTrip,
     this.onTripSaved,
+    this.trip,
+    this.onUpdateTrip,
   });
 
   @override
@@ -115,10 +119,36 @@ class _AddTripScreenState extends State<AddTripScreen> {
   void initState() {
     super.initState();
     // Pré-remplir les champs avec une version simplifiée pour éviter des chaînes trop longues
-    _titleController = TextEditingController(text: widget.place?.name != null ? _simplifyPlaceString(widget.place!.name) : null);
-    _locationController = TextEditingController(text: widget.place?.address != null ? _simplifyPlaceString(widget.place!.address, maxChars: 70) : null);
-    _notesController = TextEditingController();
-    _selectedDate = DateTime.now();
+    final String? initialTitle = widget.trip?.title ?? (widget.place?.name != null ? _simplifyPlaceString(widget.place!.name) : null);
+    final String? initialLocation = widget.trip?.location ?? (widget.place?.address != null ? _simplifyPlaceString(widget.place!.address, maxChars: 70) : null);
+
+    _titleController = TextEditingController(text: initialTitle);
+    _locationController = TextEditingController(text: initialLocation);
+    _notesController = TextEditingController(text: widget.trip?.notes ?? '');
+    _selectedDate = widget.trip != null ? DateFormat('dd/MM/yyyy').parse(widget.trip!.date) : DateTime.now();
+    _rating = widget.trip?.rating.toDouble() ?? 3.0;
+
+    // If editing and trip has images, load them into _photoBytes/_coverBytes depending on ordering
+    if (widget.trip != null && widget.trip!.imageUrls.isNotEmpty) {
+      // treat first image as cover, remaining as photos
+      final first = widget.trip!.imageUrls.first;
+      if (first.startsWith('data:image/')) {
+        try {
+          final bytes = base64Decode(first.split(',')[1]);
+          _coverBytes = bytes;
+        } catch (_) {}
+      }
+      final rest = widget.trip!.imageUrls.skip(1);
+      for (final url in rest) {
+        if (url.startsWith('data:image/')) {
+          try {
+            final bytes = base64Decode(url.split(',')[1]);
+            _photoBytes.add(bytes);
+            _photoPaths.add('');
+          } catch (_) {}
+        }
+      }
+    }
     // No local cover bytes initially; if widget.place has a network photo it will be shown by PlaceHeader
   }
 
@@ -197,19 +227,27 @@ class _AddTripScreenState extends State<AddTripScreen> {
       final savedLocation = _truncateForSave(_locationController.text.trim(), 100);
 
       final newTrip = Trip(
-        id: DateTime.now().millisecondsSinceEpoch, // Unique ID
+        id: widget.trip?.id ?? DateTime.now().millisecondsSinceEpoch, // preserve id when editing
         title: savedTitle,
         location: savedLocation,
         date: DateFormat('dd/MM/yyyy').format(_selectedDate),
         imageUrls: imageUrls,
         rating: _rating.toInt(),
-        weather: widget.place?.weather ?? "",
-        temperature: widget.place?.temperature?.toString() ?? "",
+        weather: widget.place?.weather ?? widget.trip?.weather ?? "",
+        temperature: widget.place?.temperature?.toString() ?? widget.trip?.temperature ?? "",
         notes: _notesController.text,
         gpsCoordinates: _pickedPosition != null
             ? '${_pickedPosition!.latitude},${_pickedPosition!.longitude}'
-            : null,
+            : widget.trip?.gpsCoordinates,
       );
+
+      if (widget.trip != null) {
+        // edit mode: prefer returning the updated trip to the caller
+        if (Navigator.canPop(context)) Navigator.of(context).pop<Trip>(newTrip);
+        widget.onUpdateTrip?.call(newTrip);
+        return;
+      }
+
       widget.onAddTrip(newTrip);
 
       // reset form fields after successful save
@@ -316,7 +354,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Nouvelle Sortie"),
+        title: Text(widget.trip != null ? "Modifier la sortie" : "Nouvelle Sortie"),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
@@ -413,7 +451,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _saveTrip,
-                  child: const Text("Enregistrer"),
+                  child: Text(widget.trip != null ? "Mettre à jour" : "Enregistrer"),
                 ),
               )
             ],

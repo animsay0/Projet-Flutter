@@ -4,16 +4,32 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
+import 'add_trip_screen.dart';
 
-class TripDetailScreen extends StatelessWidget {
+class TripDetailScreen extends StatefulWidget {
   final Trip trip;
   final Function(int) onDeleteTrip;
+  final Function(Trip) onUpdateTrip; // new callback to propagate updates
 
   const TripDetailScreen({
     super.key,
     required this.trip,
     required this.onDeleteTrip,
+    required this.onUpdateTrip,
   });
+
+  @override
+  State<TripDetailScreen> createState() => _TripDetailScreenState();
+}
+
+class _TripDetailScreenState extends State<TripDetailScreen> {
+  late Trip _trip;
+
+  @override
+  void initState() {
+    super.initState();
+    _trip = widget.trip;
+  }
 
   void _showDeleteConfirmation(BuildContext context) {
     showDialog(
@@ -32,7 +48,7 @@ class TripDetailScreen extends StatelessWidget {
             TextButton(
               child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
               onPressed: () {
-                onDeleteTrip(trip.id);
+                widget.onDeleteTrip(_trip.id);
                 Navigator.of(context).pop(); // Close the dialog
                 Navigator.of(context).pop(); // Go back to the home screen
               },
@@ -43,28 +59,47 @@ class TripDetailScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _openEdit() async {
+    // Push AddTripScreen in 'edit' mode by passing the existing trip and a onUpdateTrip callback
+    final result = await Navigator.of(context).push<Trip>(
+      MaterialPageRoute(builder: (_) => AddTripScreen(
+        trip: _trip,
+        onAddTrip: (_) {}, // keep compatibility; not used in edit mode
+        onUpdateTrip: (updated) {}, // not used here; we'll catch result via pop
+      )),
+    );
+
+    // If the edit screen returned an updated Trip, update local state and propagate
+    if (result != null) {
+      setState(() {
+        _trip = result;
+      });
+      widget.onUpdateTrip(result);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(
         slivers: [
-          _Header(trip: trip, onDelete: () => _showDeleteConfirmation(context)),
+          _Header(trip: _trip, onDelete: () => _showDeleteConfirmation(context), onEdit: _openEdit),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _QuickInfo(trip: trip),
+                  _QuickInfo(trip: _trip),
                   const SizedBox(height: 16),
-                  if (trip.gpsCoordinates != null)
-                    _GpsCard(trip: trip),
+                  if (_trip.gpsCoordinates != null)
+                    _GpsCard(trip: _trip),
                   const SizedBox(height: 16),
-                  _WeatherCard(trip: trip),
-                  if (trip.notes != null) ...[
+                  _WeatherCard(trip: _trip),
+                  if (_trip.notes != null) ...[
                     const SizedBox(height: 16),
-                    _NotesCard(notes: trip.notes!),
+                    _NotesCard(notes: _trip.notes!),
                   ],
                   const SizedBox(height: 16),
                   const _PlaceInfoCard(),
@@ -82,8 +117,9 @@ class TripDetailScreen extends StatelessWidget {
 class _Header extends StatefulWidget {
   final Trip trip;
   final VoidCallback onDelete;
+  final VoidCallback? onEdit;
 
-  const _Header({required this.trip, required this.onDelete});
+  const _Header({required this.trip, required this.onDelete, this.onEdit});
 
   @override
   State<_Header> createState() => _HeaderState();
@@ -144,10 +180,12 @@ class _HeaderState extends State<_Header> {
           icon: const Icon(Icons.favorite_border, color: Colors.white),
           onPressed: () {},
         ),
-        IconButton(
-          icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: () {},
-        ),
+
+        if (widget.onEdit != null)
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            onPressed: widget.onEdit,
+          ),
         IconButton(
           icon: const Icon(Icons.delete_outline, color: Colors.white),
           onPressed: widget.onDelete,
@@ -249,7 +287,6 @@ class _HeaderState extends State<_Header> {
 }
 
 
-
 class _Stars extends StatelessWidget {
   final int rating;
 
@@ -294,7 +331,6 @@ class _WeatherBadge extends StatelessWidget {
     );
   }
 }
-
 
 class _QuickInfo extends StatelessWidget {
   final Trip trip;
@@ -424,7 +460,6 @@ class _GpsCard extends StatelessWidget {
 }
 
 
-
 class _WeatherCard extends StatelessWidget {
   final Trip trip;
 
@@ -476,7 +511,6 @@ class _WeatherCard extends StatelessWidget {
 }
 
 
-
 class _NotesCard extends StatelessWidget {
   final String notes;
 
@@ -511,7 +545,6 @@ class _NotesCard extends StatelessWidget {
     );
   }
 }
-
 
 
 class _PlaceInfoCard extends StatelessWidget {
