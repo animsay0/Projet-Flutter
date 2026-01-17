@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
 import 'trip_detail_screen.dart';
+import 'add_trip_screen.dart';
+import '../../utils/weather_utils.dart';
+import '../../utils/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Trip> trips;
@@ -88,8 +91,8 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color(0xFF008080),
-              Color(0xFF006D6D),
+              AppColors.bannerGreen1,
+              AppColors.bannerGreen2,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -272,7 +275,7 @@ class _FilterChip extends StatelessWidget {
 
 /* ===================== TRIP LIST ===================== */
 
-class _TripList extends StatelessWidget {
+class _TripList extends StatefulWidget {
   final List<Trip> trips;
   final Function(int) onDeleteTrip;
   final Function(Trip) onUpdateTrip;
@@ -280,13 +283,86 @@ class _TripList extends StatelessWidget {
   const _TripList({required this.trips, required this.onDeleteTrip, required this.onUpdateTrip});
 
   @override
+  State<_TripList> createState() => _TripListState();
+}
+
+class _TripListState extends State<_TripList> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scaleAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _scaleAnim = Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
+    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeIn));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final trips = widget.trips;
     if (trips.isEmpty) {
-      return const Center(
-        child: Text(
-          "Aucune sortie pour le moment. Appuyez sur le bouton '+' pour en ajouter une.",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey, fontSize: 16),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FadeTransition(
+                opacity: _fadeAnim,
+                child: ScaleTransition(
+                  scale: _scaleAnim,
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [AppColors.primaryVioletWithOpacity(0.18), AppColors.accentVioletWithOpacity(0.18)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(38),
+                          boxShadow: [BoxShadow(color: const Color.fromRGBO(0, 0, 0, 0.05), blurRadius: 8, spreadRadius: 2)],
+                        ),
+                        child: const Icon(Icons.place, size: 36, color: AppColors.primaryViolet),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text('Aucune sortie enregistrée', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Commencez votre première aventure !', style: TextStyle(color: Colors.grey[600])),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: 220,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Ajouter une sortie'),
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => AddTripScreen(onAddTrip: (trip) {})));
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -294,7 +370,7 @@ class _TripList extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       itemCount: trips.length,
       itemBuilder: (context, index) {
-        return _TripCard(trip: trips[index], onDeleteTrip: onDeleteTrip, onUpdateTrip: onUpdateTrip);
+        return _TripCard(trip: trips[index], onDeleteTrip: widget.onDeleteTrip, onUpdateTrip: widget.onUpdateTrip);
       },
     );
   }
@@ -335,10 +411,7 @@ class _TripCard extends StatelessWidget {
         return _buildPlaceholder(context);
       }
     } else {
-      // url is a local path on device; only use Image.file when not on web
-      if (kIsWeb) {
-        return _buildPlaceholder(context);
-      }
+      if (kIsWeb) return _buildPlaceholder(context);
       return Image.file(
         File(url),
         height: 180,
@@ -348,7 +421,6 @@ class _TripCard extends StatelessWidget {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -363,9 +435,7 @@ class _TripCard extends StatelessWidget {
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         clipBehavior: Clip.antiAlias,
         elevation: 4,
         shadowColor: Colors.black.withAlpha((0.1 * 255).round()),
@@ -374,22 +444,14 @@ class _TripCard extends StatelessWidget {
           children: [
             Hero(
               tag: 'trip-${trip.id}',
-              child: trip.imageUrls.isNotEmpty
-                  ? _buildImage(context, trip.imageUrls.first)
-                  : _buildPlaceholder(context),
+              child: trip.imageUrls.isNotEmpty ? _buildImage(context, trip.imageUrls.first) : _buildPlaceholder(context),
             ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    trip.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text(trip.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text("${trip.location} • ${trip.date}", style: TextStyle(color: Colors.grey[600])),
                   const SizedBox(height: 6),
@@ -397,15 +459,12 @@ class _TripCard extends StatelessWidget {
                     children: [
                       _Stars(rating: trip.rating),
                       const SizedBox(width: 6),
-                      Text(
-                        "(${trip.rating}/5)",
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
+                      Text("(${trip.rating}/5)", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                       const Spacer(),
                       if (trip.weather.isNotEmpty)
                         Row(
                           children: [
-                            Text(_weatherEmoji(trip.weather), style: const TextStyle(fontSize: 18)),
+                            Text(weatherEmoji(trip.weather), style: const TextStyle(fontSize: 18)),
                             const SizedBox(width: 6),
                             Text(trip.temperature),
                           ],
@@ -422,28 +481,19 @@ class _TripCard extends StatelessWidget {
   }
 
   Widget _buildPlaceholder(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Container(
       height: 180,
       width: double.infinity,
-      color: Theme.of(context).primaryColor.withAlpha((0.1 * 255).round()),
+      color: primary.withAlpha((0.1 * 255).round()),
       child: Center(
         child: Icon(
           Icons.landscape_rounded,
           size: 64,
-          color: Theme.of(context).primaryColor.withAlpha((0.4 * 255).round()),
+          color: primary.withAlpha((0.4 * 255).round()),
         ),
       ),
     );
-  }
-
-  String _weatherEmoji(String weather) {
-    final w = weather.toLowerCase();
-    if (w.contains('sun') || w.contains('ensoleil') || w.contains('soleil') || w.contains('☀')) return '☀️';
-    if (w.contains('cloud') || w.contains('nuage')) return '⛅';
-    if (w.contains('rain') || w.contains('pluie') || w.contains('pluv')) return '🌧️';
-    if (w.contains('storm') || w.contains('orage') || w.contains('⛈')) return '🌩️';
-    if (w.contains('snow') || w.contains('neige')) return '❄️';
-    return '🌤️';
   }
 }
 

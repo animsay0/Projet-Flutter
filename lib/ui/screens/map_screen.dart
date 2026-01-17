@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:geolocator/geolocator.dart';
 import '../../data/models/place_model.dart';
 import '../../utils/persistence.dart';
+import '../../utils/app_colors.dart';
 
 class MapScreen extends StatefulWidget {
   final ll.LatLng? initialLocation;
@@ -306,10 +307,19 @@ class _MapScreenState extends State<MapScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Carte des sorties"),
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        // refresh removed from top actions (now in panel)
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.bannerGreen1, AppColors.bannerGreen2],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text('Carte', style: TextStyle(color: Colors.white)),
+        centerTitle: false,
       ),
       body: Stack(
         children: [

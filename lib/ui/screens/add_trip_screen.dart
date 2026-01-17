@@ -12,6 +12,7 @@ import 'package:projet_flutter/data/models/place_model.dart';
 import 'package:projet_flutter/data/models/trip.dart';
 import 'package:projet_flutter/ui/screens/map_screen.dart';
 import '../../utils/persistence.dart';
+import '../../utils/app_colors.dart';
 
 class AddTripScreen extends StatefulWidget {
   final Place? place;
@@ -394,10 +395,22 @@ class _AddTripScreenState extends State<AddTripScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.trip != null ? "Modifier la sortie" : "Nouvelle Sortie"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.bannerGreen1, AppColors.bannerGreen2],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+          ),
+        ),
+        title: Text(widget.trip != null ? "Modifier la sortie" : "Nouvelle Sortie", style: const TextStyle(color: Colors.white)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.save),
+            icon: const Icon(Icons.save, color: Colors.white),
             onPressed: _saveTrip,
           )
         ],

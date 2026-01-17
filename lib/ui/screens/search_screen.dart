@@ -8,6 +8,7 @@ import '../../data/models/place_model.dart';
 import '../../services/place_service.dart';
 import '../../utils/persistence.dart';
 import 'add_trip_screen.dart';
+import '../../utils/app_colors.dart';
 
 class SearchScreen extends StatefulWidget {
   final Function(Trip) onAddTrip;
@@ -147,9 +148,9 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
 
-      // Utiliser Nominatim reverse geocoding pour obtenir le nom du lieu ou ville
-      final query = _controller.text.trim().isEmpty ? 'place' : _controller.text.trim();
 
+      // Utiliser Nominatim reverse geocoding pour obtenir le nom du lieu ou ville
+      // (la variable `query` n'est pas nécessaire ici — la recherche utilise la position)
       // Pour l'instant on appelle searchPlaces simplement (Foursquare/Nominatim fallback) —
       // certaines APIs acceptent lat/lng, mais notre searchPlaces actuel n'envoie pas lat/lng.
       // Si tu veux que la recherche utilise la position, on peut ajuster `searchPlaces` pour accepter lat/lng
@@ -218,10 +219,19 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // plus épuré : pas d'ombre et titre discret
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        title: const Text("Rechercher un lieu"),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.bannerGreen1, AppColors.bannerGreen2],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+          ),
+        ),
+        title: const Text('Rechercher un lieu', style: TextStyle(color: Colors.white)),
       ),
       body: Column(
         children: [
@@ -251,7 +261,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 onChanged: (r) => setState(() => _searchRadius = r),
               ),
             ),
-          const _ApiInfoCard(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -380,32 +389,9 @@ class _NearbyButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          side: BorderSide(color: Theme.of(context).colorScheme.primary),
+          foregroundColor: Theme.of(context).colorScheme.primary,
         ),
-      ),
-    );
-  }
-}
-
-/* ===================== API INFO ===================== */
-
-class _ApiInfoCard extends StatelessWidget {
-  const _ApiInfoCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          const Icon(Icons.cloud, size: 18, color: Colors.grey),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Recherche Foursquare • météo OpenWeatherMap',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -471,12 +457,12 @@ class _PlaceCard extends StatelessWidget {
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.08),
+        color: Theme.of(context).colorScheme.primary.withAlpha((0.08 * 255).round()),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(
         Icons.place,
-        color: Theme.of(context).primaryColor.withOpacity(0.4),
+        color: Theme.of(context).colorScheme.primary.withAlpha((0.4 * 255).round()),
       ),
     );
   }
@@ -490,7 +476,6 @@ class _PlaceCard extends StatelessWidget {
     if (place.temperature != null) meta.add('${place.temperature!.round()}°C');
     if (meta.isNotEmpty) subtitle = '$subtitle\n${meta.join(' • ')}';
 
-    final bool isThreeLine = subtitle.contains('\n');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
