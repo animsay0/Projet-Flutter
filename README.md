@@ -84,10 +84,14 @@
 
 ## Lancement du projet
 
+
+
 ```bash
+git checkout main
 flutter pub get
 flutter run
 ```
+*Si la branche main ne fonctionne pas aller sur la dev*
 
 ---
 
