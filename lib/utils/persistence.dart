@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/place_model.dart';
@@ -5,6 +6,24 @@ import '../data/models/place_model.dart';
 class Persistence {
   static const String _keySavedPlaces = 'saved_places_v1';
   static const String _keySeedFlag = 'saved_places_seed_v1';
+
+  // Stream broadcast pour notifier les changements de la liste des lieux
+  // On émet la liste complète pour éviter d'avoir à recharger depuis l'UI.
+  static final StreamController<List<Place>> _onPlacesChanged = StreamController<List<Place>>.broadcast();
+  static Stream<List<Place>> get onPlacesChanged => _onPlacesChanged.stream;
+
+  static void _notifyChange() {
+    // Charger la liste actuelle et l'émettre sur le stream (non bloquant)
+    loadPlaces().then((places) {
+      try {
+        if (!_onPlacesChanged.isClosed) _onPlacesChanged.add(places);
+      } catch (_) {
+        // ignore
+      }
+    }).catchError((_) {
+      // ignore errors when notifying
+    });
+  }
 
   static Future<List<Place>> loadPlaces() async {
     final prefs = await SharedPreferences.getInstance();
@@ -23,6 +42,7 @@ class Persistence {
     final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(places.map((p) => p.toJson()).toList());
     await prefs.setString(_keySavedPlaces, raw);
+    _notifyChange();
   }
 
   static Future<void> addPlace(Place place) async {
@@ -31,18 +51,22 @@ class Persistence {
     if (places.any((p) => p.id == place.id)) return;
     places.add(place);
     await savePlaces(places);
+    // savePlaces already notifies, mais appeler explicitement pour être sûr
+    //_notifyChange();
   }
 
   static Future<void> removePlace(String id) async {
     final places = await loadPlaces();
     places.removeWhere((p) => p.id == id);
     await savePlaces(places);
+    // savePlaces notifie
   }
 
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keySavedPlaces);
     await prefs.remove(_keySeedFlag);
+    _notifyChange();
   }
 
   /// Seed deux lieux d'exemple si la persistence est vide (utilisé une seule fois)
@@ -77,5 +101,7 @@ class Persistence {
 
     await savePlaces(samples);
     await prefs.setBool(_keySeedFlag, true);
+    // savePlaces notifies, mais assurer la notification après le flag
+    _notifyChange();
   }
 }
