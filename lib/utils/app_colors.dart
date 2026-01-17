@@ -6,9 +6,9 @@ class AppColors {
   static const Color bannerGreen2 = Color(0xFF006D6D);
 
   // Unified primary green palette
-  static const Color primaryGreen = Color(0xFF16A34A); // Tailwind green-600
-  static const Color accentGreen = Color(0xFF4ADE80); // Tailwind green-400 (lighter)
-  static const Color background = Color(0xFFF9FAFB);
+  static const Color primaryGreen = Color(0xFF768E7F); // Tailwind green-600
+  static const Color accentGreen = Color(0xFFD9F3E4); // Tailwind green-400 (lighter)
+  static const Color background = Color(0xFFFFFFFF);
 
   // Helpers to produce translucent variants
   static Color primaryGreenWithOpacity(double o) => Color.fromRGBO(22, 163, 74, o);
