@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
+import '../../utils/app_colors.dart';
 import 'add_trip_screen.dart';
 
 class TripDetailScreen extends StatefulWidget {
@@ -342,7 +343,7 @@ class _InfoTile extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center, // centrer verticalement le contenu
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: const Color(0xFF4F46E5)),
+                Icon(icon, color: AppColors.primaryGreen),
                 const SizedBox(height: 8),
                 Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 6),

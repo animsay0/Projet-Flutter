@@ -400,7 +400,7 @@ class _MapScreenState extends State<MapScreen> {
                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                    child: Row(
                      children: [
-                       const Icon(Icons.navigation, color: Colors.blue),
+                       const Icon(Icons.navigation, color: AppColors.primaryGreen),
                        const SizedBox(width: 8),
                        Expanded(child: Text('${_places.length} lieu${_places.length > 1 ? 'x' : ''} sur la carte')),
                        const SizedBox(width: 8),

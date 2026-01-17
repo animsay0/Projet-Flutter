@@ -17,13 +17,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use centralized colors
-    const primaryViolet = AppColors.primaryViolet;
-    const accent = AppColors.accentViolet;
+    // Use centralized green colors
+    const primaryGreen = AppColors.primaryGreen;
+    const accent = AppColors.accentGreen;
 
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: primaryViolet,
-      primary: primaryViolet,
+      seedColor: primaryGreen,
+      primary: primaryGreen,
       secondary: const Color(0xFFFFB000),
       surface: AppColors.background,
     );
@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
-        primaryColor: primaryViolet,
+        primaryColor: primaryGreen,
         scaffoldBackgroundColor: const Color(0xFFF9FAFB),
         appBarTheme: const AppBarTheme(
           elevation: 0,
@@ -50,7 +50,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: primaryViolet,
+          backgroundColor: primaryGreen,
           elevation: 6,
         ),
         cardTheme: CardThemeData(
@@ -60,7 +60,7 @@ class MyApp extends StatelessWidget {
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
-          selectedItemColor: primaryViolet,
+          selectedItemColor: primaryGreen,
           unselectedItemColor: Colors.grey[500],
         ),
       ),

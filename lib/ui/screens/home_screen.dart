@@ -326,7 +326,7 @@ class _TripListState extends State<_TripList> with SingleTickerProviderStateMixi
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
-                        colors: [AppColors.primaryVioletWithOpacity(0.18), AppColors.accentVioletWithOpacity(0.18)],
+                        colors: [AppColors.primaryGreenWithOpacity(0.18), AppColors.accentGreenWithOpacity(0.18)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -340,7 +340,7 @@ class _TripListState extends State<_TripList> with SingleTickerProviderStateMixi
                           borderRadius: BorderRadius.circular(38),
                           boxShadow: [BoxShadow(color: const Color.fromRGBO(0, 0, 0, 0.05), blurRadius: 8, spreadRadius: 2)],
                         ),
-                        child: const Icon(Icons.place, size: 36, color: AppColors.primaryViolet),
+                        child: const Icon(Icons.place, size: 36, color: AppColors.primaryGreen),
                       ),
                     ),
                   ),
