@@ -33,13 +33,11 @@ class Trip {
     this.placeTotalRatings,
   });
 
-  // Factory constructor to create a Trip object from a map
   factory Trip.fromJson(Map<String, dynamic> json) {
     List<String> imageUrls = [];
     if (json['imageUrls'] != null) {
       imageUrls = List<String>.from(json['imageUrls']);
     } else if (json['imageUrl'] != null) {
-      // Backward compatibility for old data model with a single imageUrl
       imageUrls = [json['imageUrl'] as String];
     }
 

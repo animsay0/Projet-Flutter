@@ -25,7 +25,7 @@ class _MapScreenState extends State<MapScreen> {
 
   final MapController _mapController = MapController();
 
-  // Coordonnée par défaut (France centre)
+  // Coordonnée par défaut
   static const ll.LatLng _defaultCenter = ll.LatLng(46.5, 2.5);
 
   // subscription au stream de persistence
@@ -64,7 +64,7 @@ class _MapScreenState extends State<MapScreen> {
     // Seed sample places if empty, then load
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Persistence.seedSamplePlacesIfEmpty();
-      // Trigger initial load by invoking notify (seed calls savePlaces which notifies).
+      // Trigger initial load by invoking notify
       final initial = await Persistence.loadPlaces();
       if (!mounted) return;
       setState(() {
@@ -84,7 +84,7 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _determineAndSetDeviceLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return; // location services are not enabled
+      if (!serviceEnabled) return;
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -109,7 +109,7 @@ class _MapScreenState extends State<MapScreen> {
     setState(() => _isLoading = true);
     final places = await Persistence.loadPlaces();
     setState(() {
-      _places = places; // plus de fallback en mémoire
+      _places = places;
       _isLoading = false;
     });
   }
@@ -155,7 +155,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Toggleable panel: opens or closes the places panel. When open, `_sheetContext` keeps the sheet context
+  // Toggleable panel
   void _openPlacesPanel() {
     if (_isPanelOpen) {
       if (_sheetContext != null) Navigator.pop(_sheetContext!);
@@ -170,7 +170,6 @@ class _MapScreenState extends State<MapScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (sheetCtx) {
-        // store the sheet context to be able to close it programmatically
         _sheetContext = sheetCtx;
         return DraggableScrollableSheet(
           expand: false,
@@ -300,7 +299,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Try widget.initialLocation first, then route arguments (RouteSettings.arguments), then fallback
+    // Try widget.initialLocation first, then route arguments, then fallback
     final routeArg = ModalRoute.of(context)?.settings.arguments;
     final ll.LatLng? argLoc = (routeArg is ll.LatLng) ? routeArg : null;
     final center = widget.initialLocation ?? argLoc ?? _deviceLocation ?? (_places.isNotEmpty ? ll.LatLng(_places.first.lat, _places.first.lng) : _defaultCenter);
@@ -387,7 +386,7 @@ class _MapScreenState extends State<MapScreen> {
              ],
            ),
 
-           // Top pill/banner showing number of places and small chip (UI from mock)
+           // Top pill/banner showing number of places and small chip
            Positioned(
              top: 12,
              left: 12,

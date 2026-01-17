@@ -10,7 +10,7 @@ import 'add_trip_screen.dart';
 class TripDetailScreen extends StatefulWidget {
   final Trip trip;
   final Function(int) onDeleteTrip;
-  final Function(Trip) onUpdateTrip; // new callback to propagate updates
+  final Function(Trip) onUpdateTrip;
 
   const TripDetailScreen({
     super.key,
@@ -96,7 +96,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   const SizedBox(height: 16),
                   if (_trip.imageUrls.isNotEmpty) _PhotosCard(imageUrls: _trip.imageUrls),
                   const SizedBox(height: 16),
-                  // Weather section intentionally hidden in detail view (kept in list card)
+                  // Weather section intentionally hidden in detail view
                   if (_trip.notes != null) ...[
                     const SizedBox(height: 16),
                     _NotesCard(notes: _trip.notes!),
@@ -228,7 +228,6 @@ class _HeaderState extends State<_Header> {
                         style: const TextStyle(color: Colors.white70),
                       ),
                       const Spacer(),
-                      // Weather badge hidden in detail header to avoid redundant section
                     ],
                   )
                 ],
@@ -294,7 +293,6 @@ class _QuickInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Utiliser IntrinsicHeight pour que les tuiles prennent la même hauteur
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -331,23 +329,20 @@ class _InfoTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Card(
-        // style unifié pour toutes les cards : coins arrondis et ombre discrète
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 1,
         child: ConstrainedBox(
-          // garder une hauteur minimum mais autoriser l'expansion si le contenu dépasse
           constraints: const BoxConstraints(minHeight: 110),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center, // centrer verticalement le contenu
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(icon, color: AppColors.primaryGreen),
                 const SizedBox(height: 8),
                 Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 6),
-                // permettre l'expansion verticale mais tronquer raisonnablement
                 Text(
                   value,
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -379,7 +374,6 @@ class _WeatherCard extends StatelessWidget {
       child: SizedBox(
         width: double.infinity,
         child: ConstrainedBox(
-          // hauteur minimum, autoriser l'expansion si nécessaire
           constraints: const BoxConstraints(minHeight: 110),
           child: Padding(
             padding: const EdgeInsets.all(16),

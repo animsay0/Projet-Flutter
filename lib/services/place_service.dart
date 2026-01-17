@@ -13,15 +13,15 @@ class PlaceService {
   // Version Foursquare au format YYYYMMDD (requise par l'API)
   static const String _placesApiVersion = '20250617';
 
-  // Correction: utiliser la même forme que le paramètre 'v' ou supprimer l'en-tête
+  // Correction : utiliser la même forme que le paramètre 'v' ou supprimer l'en-tête
   static const Map<String, String> _headers = {
     'Accept': 'application/json',
     'Authorization': 'Bearer $_serviceKey',
     'X-Places-Api-Version': _placesApiVersion,
   };
 
-  /// 🔍 Autocomplete avec filtre pays corrigé
-  /// Utilise Foursquare si possible, sinon fallback vers Nominatim (OpenStreetMap)
+  /// 🔍 Autocomplétion avec filtre par pays
+  /// Utilise Foursquare si disponible, sinon bascule vers Nominatim (OpenStreetMap)
   Future<List<Place>> searchPlaces(
       String query, {
         String? countryCode,
@@ -31,7 +31,7 @@ class PlaceService {
     final params = {
       'query': query,
       'limit': '20',
-      'v': _placesApiVersion, // Ajout de la version exigée par l'API
+      'v': _placesApiVersion,
     };
 
     if (countryCode != null) {
@@ -49,15 +49,15 @@ class PlaceService {
       params,
     );
 
-    print('🔍 Recherche: $query ${countryCode != null ? "dans $countryCode" : "mondial"}');
-    print('📍 URL: $uri');
+    print('🔍 Recherche : $query ${countryCode != null ? "dans $countryCode" : "mondial"}');
+    print('📍 URL : $uri');
 
     try {
       final response = await http.get(uri, headers: _headers);
 
       if (response.statusCode != 200) {
-        print('Foursquare returned ${response.statusCode}: ${response.body}');
-        // Fallback -- essayer Nominatim, puis Photon, puis Overpass (si coords)
+        print('Foursquare a renvoyé ${response.statusCode} : ${response.body}');
+        // Bascule -- essayer Nominatim, puis Photon, puis Overpass (si coordonnées)
         final nom = await _searchNominatim(query, countryCode: countryCode, lat: lat, lng: lng);
         if (nom.isNotEmpty) return nom;
 
@@ -98,7 +98,7 @@ class PlaceService {
         );
       }).toList();
     } catch (e) {
-      print('Erreur recherche Foursquare: $e — fallback vers Nominatim/Photon/Overpass');
+      print('Erreur recherche Foursquare : $e — bascule vers Nominatim/Photon/Overpass');
       final nom = await _searchNominatim(query, countryCode: countryCode, lat: lat, lng: lng);
       if (nom.isNotEmpty) return nom;
       final photon = await _searchPhoton(query, countryCode: countryCode, limit: 20);
@@ -111,7 +111,7 @@ class PlaceService {
     }
   }
 
-  /// Fallback: recherche via Nominatim (OpenStreetMap) — sans clé API
+  /// Bascule : recherche via Nominatim (OpenStreetMap) — sans clé API
   Future<List<Place>> _searchNominatim(String query, {String? countryCode, double? lat, double? lng}) async {
     final params = {
       'q': query,
@@ -120,11 +120,9 @@ class PlaceService {
     };
 
     if (countryCode != null) {
-      // Nominatim attend des codes pays en minuscules, séparés par ',' si plusieurs
       params['countrycodes'] = countryCode.toLowerCase();
     }
 
-    // Si des coordonnées sont fournies, utiliser une viewbox limitée pour les recherches
     if (lat != null && lng != null) {
       // viewbox format: left_lon, top_lat, right_lon, bottom_lat
       params['viewbox'] = '${lng - 0.1},${lat + 0.1},${lng + 0.1},${lat - 0.1}';
@@ -133,7 +131,7 @@ class PlaceService {
 
     final uri = Uri.https('nominatim.openstreetmap.org', '/search', params);
 
-    print('Fallback Nominatim URL: $uri');
+    print('URL Nominatim (bascule) : $uri');
 
     try {
       final response = await http.get(uri, headers: {
@@ -167,13 +165,13 @@ class PlaceService {
         );
       }).toList();
     } catch (e) {
-      print('Erreur Nominatim: $e');
+      print('Erreur Nominatim : $e');
       return [];
     }
   }
 
-  /// Recherche POI via Overpass API (OpenStreetMap) autour des coordonnées fournies.
-  /// Recherches les tags tourism, amenity, historic, leisure, shop dans un rayon et retourne des Place.
+  /// Recherche de POI via l'API Overpass (OpenStreetMap) autour des coordonnées fournies.
+  /// Recherche les tags tourism, amenity, historic, leisure, shop dans un rayon et retourne des objets Place.
   Future<List<Place>> _searchOverpass(double lat, double lng, {int radius = 2000, int limit = 20}) async {
     // Endpoints Overpass (fallback list)
     final endpoints = [
@@ -205,9 +203,9 @@ out center;''';
               },
               body: query)
               .timeout(const Duration(seconds: 15));
-          print('Overpass POST $endpoint -> status ${resp.statusCode}');
+          print('Overpass POST $endpoint -> statut ${resp.statusCode}');
         } catch (e) {
-          print('Overpass POST failed for $endpoint: $e');
+          print('Overpass POST a échoué pour $endpoint : $e');
           resp = null;
         }
 
@@ -220,25 +218,25 @@ out center;''';
               'Accept': 'application/json'
             }).timeout(const Duration(seconds: 15));
             resp = getResp;
-            print('Overpass GET ${endpoint} -> status ${resp.statusCode}');
+            print('Overpass GET ${endpoint} -> statut ${resp.statusCode}');
           } catch (e) {
-            print('Overpass GET failed for $endpoint: $e');
+            print('Overpass GET a échoué pour $endpoint : $e');
             resp = null;
           }
         }
 
         if (resp != null && resp.statusCode == 200) {
-          print('Overpass: successful response from $endpoint');
+          print('Overpass : réponse réussie depuis $endpoint');
           break;
         }
       }
 
       if (resp == null) {
-        print('Overpass: aucune réponse valide des endpoints');
+        print('Overpass : aucune réponse valide des endpoints');
         return [];
       }
       if (resp.statusCode != 200) {
-        print('Overpass returned ${resp.statusCode}: ${resp.body}');
+        print('Overpass a renvoyé ${resp.statusCode} : ${resp.body}');
         return [];
       }
 
@@ -277,7 +275,6 @@ out center;''';
         if (historic.isNotEmpty) score += 1;
         if (leisure.isNotEmpty) score += 1;
 
-        // Build address
         final addressParts = <String>[];
         if (tags['addr:street'] != null) addressParts.add(tags['addr:street']);
         if (tags['addr:city'] != null) addressParts.add(tags['addr:city']);
@@ -286,7 +283,6 @@ out center;''';
         if (tags['addr:suburb'] != null) addressParts.add(tags['addr:suburb']);
         final address = addressParts.join(', ');
 
-        // Compute distance to center
         final dist = _distanceKm(lat, lng, plat, plng);
 
         candidates.add({
@@ -363,9 +359,6 @@ out center;''';
 
 
   Future<Place> getPlaceDetails(String fsqPlaceId) async {
-    // Si l'ID provient d'un fallback (nominatim_/photon_/overpass_),
-    // récupérer les détails via les sources correspondantes pour retourner
-    // un Place exploitable (évite d'appeler Foursquare).
     try {
       if (fsqPlaceId.toLowerCase().startsWith('overpass_')) {
         // format: overpass_<osmId>_<type>
@@ -536,7 +529,7 @@ out center;''';
         return null;
       }
 
-      // 1a) Tentative via l'API REST v1 (plus CORS-friendly) : /w/rest.php/v1/search/page
+      //  Tentative via l'API REST v1 (plus CORS-friendly) : /w/rest.php/v1/search/page
       for (final host in hosts) {
         for (final q in [shortQuery, query]) {
           try {
@@ -576,7 +569,7 @@ out center;''';
         }
       }
 
-      // 1b) Méthode principale : generator search + pageimages
+      // Méthode principale : generator search + pageimages
       for (final host in hosts) {
         for (final q in [shortQuery, query]) {
           final params = {
@@ -611,7 +604,7 @@ out center;''';
         }
       }
 
-      // 2) Si on a des coordonnées, tenter une recherche par proximité (geosearch)
+      // Si on a des coordonnées, tenter une recherche par proximité (geosearch)
       if (lat != null && lng != null) {
         for (final host in hosts) {
           final params = {
@@ -656,7 +649,7 @@ out center;''';
         }
       }
 
-      // 3) Fallback : utiliser opensearch pour récupérer des titres puis page/summary pour avoir un thumbnail
+      // Fallback : utiliser opensearch pour récupérer des titres puis page/summary pour avoir un thumbnail
       for (final host in hosts) {
         for (final q in [shortQuery, query]) {
           final opensearchParams = {
@@ -773,13 +766,13 @@ out center;''';
         if (over.isNotEmpty) return over;
       }
 
-      // 1) Recherche par mots-clés localisés (Nominatim dans une petite viewbox)
+      //  Recherche par mots-clés localisés (Nominatim dans une petite viewbox)
       final keywords = ['château', 'parc', 'musée', 'monument', 'église', 'restaurant', 'jardin'];
       final kwResults = await _searchNominatimKeywords(keywords, lat, lng, countryCode: countryCode, limit: limit);
       print('searchNearby: keyword Nominatim fallback -> ${kwResults.length} results');
       if (kwResults.isNotEmpty) return kwResults;
 
-      // 2) Si rien, tenter un reverse geocode pour obtenir le nom de commune et rechercher cette commune (peut renvoyer POI)
+      //  Si rien, tenter un reverse geocode pour obtenir le nom de commune et rechercher cette commune (peut renvoyer POI)
       final rev = await _reverseNominatim(lat, lng);
       if (rev != null) {
         final String? city = rev['address']?['city'] ?? rev['address']?['town'] ?? rev['address']?['village'] ?? rev['address']?['county'];
@@ -790,7 +783,7 @@ out center;''';
         }
       }
 
-      // 3) Dernier recours : recherche Nominatim générique dans la viewbox autour des coords (terme 'place')
+      //  Dernier recours : recherche Nominatim générique dans la viewbox autour des coords (terme 'place')
       final fallback = await _searchNominatim('place', countryCode: countryCode, lat: lat, lng: lng);
       print('searchNearby: final Nominatim fallback -> ${fallback.length} results');
       if (fallback.isNotEmpty) return fallback;
@@ -889,7 +882,7 @@ out center;''';
     return deduped;
   }
 
-  /// Fallback: recherche via Photon (photon.komoot.io) pour recherche texte sans clé
+  /// Bascule : recherche via Photon (photon.komoot.io) pour recherche texte sans clé
   Future<List<Place>> _searchPhoton(String query, {String? countryCode, int limit = 20}) async {
     try {
       // Si on souhaite limiter au pays (ex: FR), ajouter le nom du pays au terme de recherche

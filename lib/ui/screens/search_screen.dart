@@ -23,7 +23,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final PlaceService _placeService = PlaceService();
   String? _selectedCountry;
   int _searchRadius = 2000; // en mètres
-  bool _isNearbyMode = false; // si true, afficher le sélecteur de rayon
+  bool _isNearbyMode = false;
 
   bool _isLoading = false;
   List<Place> _results = [];
@@ -49,7 +49,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _search({double? lat, double? lng}) async {
-    // toute recherche manuelle annule le mode 'près de moi' (ne pas appliquer le radius global)
+    // toute recherche manuelle annule le mode 'près de moi'
     if (_isNearbyMode) setState(() => _isNearbyMode = false);
     final query = _controller.text.trim();
     if (query.isEmpty) return;
@@ -74,7 +74,7 @@ class _SearchScreenState extends State<SearchScreen> {
       });
 
       // Enrichir un nombre limité de places en tâche de fond pour limiter les appels concurrents
-      final maxEnrich = min(places.length, 6); // limiter à 6 enrichissements simultanés
+      final maxEnrich = min(places.length, 6);
       for (var i = 0; i < maxEnrich; i++) {
         final original = places[i];
 
@@ -150,20 +150,11 @@ class _SearchScreenState extends State<SearchScreen> {
 
 
       // Utiliser Nominatim reverse geocoding pour obtenir le nom du lieu ou ville
-      // (la variable `query` n'est pas nécessaire ici — la recherche utilise la position)
-      // Pour l'instant on appelle searchPlaces simplement (Foursquare/Nominatim fallback) —
-      // certaines APIs acceptent lat/lng, mais notre searchPlaces actuel n'envoie pas lat/lng.
-      // Si tu veux que la recherche utilise la position, on peut ajuster `searchPlaces` pour accepter lat/lng
-      // Ici on fait une simple recherche globale et on informera l'utilisateur.
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Position: ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}')),
       );
 
-      // Optionnel: pré-remplir le champ recherche
-      //_controller.text = query;
-
-      // Appeler la méthode dédiée searchNearby pour récupérer des POI locaux (Overpass puis Nominatim)
+      // Appeler la méthode dédiée searchNearby pour récupérer des POI locaux
       final places = await _placeService.searchNearby(pos.latitude, pos.longitude, countryCode: _selectedCountry, radius: _searchRadius);
 
       // Afficher les résultats bruts
@@ -173,7 +164,6 @@ class _SearchScreenState extends State<SearchScreen> {
         });
       }
 
-      // Enrichir progressivement (limité) - réutiliser la logique d'enrichissement
       final int currentToken = ++_searchToken;
       final maxEnrich = min(places.length, 6);
       for (var i = 0; i < maxEnrich; i++) {
@@ -252,7 +242,6 @@ class _SearchScreenState extends State<SearchScreen> {
               onPressed: _searchNearby,
             ),
           ),
-          // n'afficher le sélecteur de rayon que si l'utilisateur a choisi 'Lieux à proximité'
           if (_isNearbyMode)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -348,7 +337,7 @@ class _SearchBar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Chips pour sélectionner France / Monde (plus discret que SegmentedButton)
+          // Chips pour sélectionner France / Monde
           Wrap(
             spacing: 8,
             children: [

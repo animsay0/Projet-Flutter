@@ -13,7 +13,6 @@ class Persistence {
   static Stream<List<Place>> get onPlacesChanged => _onPlacesChanged.stream;
 
   static void _notifyChange() {
-    // Charger la liste actuelle et l'émettre sur le stream (non bloquant)
     loadPlaces().then((places) {
       try {
         if (!_onPlacesChanged.isClosed) _onPlacesChanged.add(places);
@@ -47,19 +46,15 @@ class Persistence {
 
   static Future<void> addPlace(Place place) async {
     final places = await loadPlaces();
-    // ne pas dupliquer
     if (places.any((p) => p.id == place.id)) return;
     places.add(place);
     await savePlaces(places);
-    // savePlaces already notifies, mais appeler explicitement pour être sûr
-    //_notifyChange();
   }
 
   static Future<void> removePlace(String id) async {
     final places = await loadPlaces();
     places.removeWhere((p) => p.id == id);
     await savePlaces(places);
-    // savePlaces notifie
   }
 
   static Future<void> clearAll() async {
@@ -69,11 +64,8 @@ class Persistence {
     _notifyChange();
   }
 
-  /// Seed deux lieux d'exemple si la persistence est vide (utilisé une seule fois)
+  /// Seed deux lieux d'exemple si la persistence est vide
   static Future<void> seedSamplePlacesIfEmpty() async {
-    // Seeding disabled — samples removed to avoid cluttering user data.
-    // If you want to re-enable seeding for testing, restore the implementation
-    // or call a helper that inserts sample places.
     return;
   }
 }

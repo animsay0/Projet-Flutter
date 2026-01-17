@@ -8,7 +8,7 @@ String weatherEmoji(String weather) {
   return '🌤️';
 }
 
-// Small helper to normalize labels (optional)
+// Petit utilitaire pour normaliser les libellés météo
 String normalizeWeatherLabel(String weather) {
   return weather.trim();
 }

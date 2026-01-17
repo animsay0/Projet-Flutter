@@ -21,7 +21,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late List<Trip> _filteredTrips;
-  int _selectedRating = 0; // 0 for "Tout"
+  int _selectedRating = 0;
 
   @override
   void initState() {
@@ -49,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onFilterChanged(int rating) {
-    // If the same filter is tapped again, reset to "Tout"
     if (_selectedRating == rating) {
       _selectedRating = 0;
     } else {
