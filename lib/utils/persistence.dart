@@ -71,37 +71,9 @@ class Persistence {
 
   /// Seed deux lieux d'exemple si la persistence est vide (utilisé une seule fois)
   static Future<void> seedSamplePlacesIfEmpty() async {
-    final prefs = await SharedPreferences.getInstance();
-    final seeded = prefs.getBool(_keySeedFlag) ?? false;
-    final existing = await loadPlaces();
-    if (seeded || existing.isNotEmpty) return;
-
-    final samples = [
-      Place(
-        id: 'sample_mont_blanc',
-        name: 'Mont Blanc',
-        address: 'Chamonix',
-        lat: 45.8326,
-        lng: 6.8652,
-        photoUrl: 'https://images.unsplash.com/photo-1713959989861-2425c95e9777?q=80&w=1080',
-        weather: '☀️',
-        temperature: 18.0,
-      ),
-      Place(
-        id: 'sample_annecy',
-        name: 'Lac d\'Annecy',
-        address: 'Annecy',
-        lat: 45.8992,
-        lng: 6.1296,
-        photoUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1080',
-        weather: '🌤️',
-        temperature: 22.0,
-      ),
-    ];
-
-    await savePlaces(samples);
-    await prefs.setBool(_keySeedFlag, true);
-    // savePlaces notifies, mais assurer la notification après le flag
-    _notifyChange();
+    // Seeding disabled — samples removed to avoid cluttering user data.
+    // If you want to re-enable seeding for testing, restore the implementation
+    // or call a helper that inserts sample places.
+    return;
   }
 }

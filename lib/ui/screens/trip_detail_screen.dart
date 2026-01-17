@@ -171,10 +171,6 @@ class _HeaderState extends State<_Header> {
           icon: const Icon(Icons.favorite_border, color: Colors.white),
           onPressed: () {},
         ),
-        IconButton(
-          icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: () {},
-        ),
         // Edit button added
         if (widget.onEdit != null)
           IconButton(
@@ -402,10 +398,7 @@ class _WeatherCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        "Source: OpenWeatherMap",
-                        style: TextStyle(fontSize: 12),
-                      ),
+
                     ],
                   ),
                 ),
