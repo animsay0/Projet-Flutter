@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:projet_flutter/data/models/place_model.dart';
 import 'package:projet_flutter/data/models/trip.dart';
 import 'package:projet_flutter/ui/screens/map_screen.dart';
+import '../../utils/persistence.dart';
 
 class AddTripScreen extends StatefulWidget {
   final Place? place;
@@ -173,8 +174,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
     );
   }
 
-
-  void _saveTrip() {
+  Future<void> _saveTrip() async {
     if (_formKey.currentState!.validate()) {
       // Persist processed images as data URIs so they're portable across platforms
       final List<String> imageUrls = [];
@@ -211,6 +211,42 @@ class _AddTripScreenState extends State<AddTripScreen> {
             : null,
       );
       widget.onAddTrip(newTrip);
+
+      // If possible, also add the place to saved places so it appears on the map
+      bool hasCoords = false;
+      Place? placeToSave;
+      // consider coordinates valid if not near (0,0)
+      bool coordsValid(double lat, double lng) => lat.abs() > 1e-5 && lng.abs() > 1e-5;
+
+      if (widget.place != null && coordsValid(widget.place!.lat, widget.place!.lng)) {
+        hasCoords = true;
+        placeToSave = widget.place;
+      } else if (_pickedPosition != null) {
+        hasCoords = true;
+        placeToSave = Place(
+          id: 'manual_${DateTime.now().millisecondsSinceEpoch}',
+          name: savedTitle,
+          address: savedLocation,
+          lat: _pickedPosition!.latitude,
+          lng: _pickedPosition!.longitude,
+          photoUrl: widget.place?.photoUrl,
+          weather: widget.place?.weather,
+          temperature: widget.place?.temperature,
+        );
+      }
+
+      if (hasCoords && placeToSave != null) {
+        try {
+          await Persistence.addPlace(placeToSave);
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lieu sauvegardé et ajouté à la carte')));
+        } catch (e) {
+          // ignore persistence errors but inform user
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lieu sauvegardé mais impossible de l\'ajouter à la carte: $e')));
+        }
+      } else {
+        // saved trip but no coords available -> inform user it won't appear on the map
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sortie enregistrée (coordonnées absentes — non affichée sur la carte)')));
+      }
 
       // reset form fields after successful save
       _titleController.clear();

@@ -31,12 +31,15 @@ class _MapScreenState extends State<MapScreen> {
   late final Stream<List<Place>> _persistenceStream;
   late final StreamSubscription<List<Place>> _persistenceSub;
 
+  // helper: consider coordinates valid if not near (0,0)
+  bool _hasCoords(Place p) => p.lat.abs() > 1e-5 && p.lng.abs() > 1e-5;
+
   @override
   void initState() {
     super.initState();
     _persistenceStream = Persistence.onPlacesChanged;
     // When persistence notifies, receive the full list of places and update UI.
-    // We detect newly added places by comparing ids and center the map on the last added.
+    // We detect newly added places by comparing ids and center the map on the last added (only if it has coords).
     _persistenceSub = _persistenceStream.listen((places) async {
       if (!mounted) return;
       final previousIds = _places.map((p) => p.id).toSet();
@@ -46,8 +49,9 @@ class _MapScreenState extends State<MapScreen> {
       });
       // detect additions
       final added = places.where((p) => !previousIds.contains(p.id)).toList();
-      if (added.isNotEmpty) {
-        final target = added.last;
+      final addedWithCoords = added.where((p) => _hasCoords(p)).toList();
+      if (addedWithCoords.isNotEmpty) {
+        final target = addedWithCoords.last;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           try {
             _mapController.move(ll.LatLng(target.lat, target.lng), 13);
@@ -325,8 +329,8 @@ class _MapScreenState extends State<MapScreen> {
               ),
               MarkerLayer(
                 markers: [
-                  // markers for saved places
-                  ..._places.map((p) => Marker(
+                  // markers for saved places (only places with valid coords)
+                  ..._places.where(_hasCoords).map((p) => Marker(
                         point: ll.LatLng(p.lat, p.lng),
                         width: 40,
                         height: 40,
