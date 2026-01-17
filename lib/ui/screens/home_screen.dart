@@ -9,7 +9,8 @@ import 'trip_detail_screen.dart';
 class HomeScreen extends StatefulWidget {
   final List<Trip> trips;
   final Function(int) onDeleteTrip;
-  const HomeScreen({super.key, required this.trips, required this.onDeleteTrip});
+  final Function(Trip) onUpdateTrip;
+  const HomeScreen({super.key, required this.trips, required this.onDeleteTrip, required this.onUpdateTrip});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -65,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedRating: _selectedRating,
             onFilterChanged: _onFilterChanged,
           ),
-          Expanded(child: _TripList(trips: _filteredTrips, onDeleteTrip: widget.onDeleteTrip)),
+          Expanded(child: _TripList(trips: _filteredTrips, onDeleteTrip: widget.onDeleteTrip, onUpdateTrip: widget.onUpdateTrip)),
         ],
       ),
     );
@@ -274,8 +275,9 @@ class _FilterChip extends StatelessWidget {
 class _TripList extends StatelessWidget {
   final List<Trip> trips;
   final Function(int) onDeleteTrip;
+  final Function(Trip) onUpdateTrip;
 
-  const _TripList({required this.trips, required this.onDeleteTrip});
+  const _TripList({required this.trips, required this.onDeleteTrip, required this.onUpdateTrip});
 
   @override
   Widget build(BuildContext context) {
@@ -292,7 +294,7 @@ class _TripList extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       itemCount: trips.length,
       itemBuilder: (context, index) {
-        return _TripCard(trip: trips[index], onDeleteTrip: onDeleteTrip);
+        return _TripCard(trip: trips[index], onDeleteTrip: onDeleteTrip, onUpdateTrip: onUpdateTrip);
       },
     );
   }
@@ -303,8 +305,9 @@ class _TripList extends StatelessWidget {
 class _TripCard extends StatelessWidget {
   final Trip trip;
   final Function(int) onDeleteTrip;
+  final Function(Trip) onUpdateTrip;
 
-  const _TripCard({required this.trip, required this.onDeleteTrip});
+  const _TripCard({required this.trip, required this.onDeleteTrip, required this.onUpdateTrip});
 
   Widget _buildImage(BuildContext context, String url) {
     if (url.startsWith('http')) {
@@ -354,7 +357,7 @@ class _TripCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TripDetailScreen(trip: trip, onDeleteTrip: onDeleteTrip),
+            builder: (_) => TripDetailScreen(trip: trip, onDeleteTrip: onDeleteTrip, onUpdateTrip: onUpdateTrip),
           ),
         );
       },

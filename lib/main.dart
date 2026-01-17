@@ -66,6 +66,17 @@ class _MainLayoutState extends State<MainLayout> {
     await _tripService.saveTrips(_trips);
   }
 
+  Future<void> _updateTrip(Trip updatedTrip) async {
+    setState(() {
+      final index = _trips.indexWhere((trip) => trip.id == updatedTrip.id);
+      if (index != -1) {
+        _trips[index] = updatedTrip;
+      }
+    });
+    await _tripService.saveTrips(_trips);
+  }
+
+
   Future<void> _deleteTrip(int tripId) async {
     setState(() {
       _trips.removeWhere((trip) => trip.id == tripId);
@@ -82,10 +93,10 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      HomeScreen(trips: _trips, onDeleteTrip: _deleteTrip),
+      HomeScreen(trips: _trips, onDeleteTrip: _deleteTrip, onUpdateTrip: _updateTrip),
       SearchScreen(onAddTrip: _addTrip),
       AddTripScreen(onAddTrip: _addTrip, onTripSaved: _onTripSaved),
-      const MapScreen(),
+      MapScreen(),
     ];
 
     return Scaffold(

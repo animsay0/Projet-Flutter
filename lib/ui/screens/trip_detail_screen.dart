@@ -4,16 +4,32 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/trip.dart';
+import 'add_trip_screen.dart';
 
-class TripDetailScreen extends StatelessWidget {
+class TripDetailScreen extends StatefulWidget {
   final Trip trip;
   final Function(int) onDeleteTrip;
+  final Function(Trip) onUpdateTrip; // new callback to propagate updates
 
   const TripDetailScreen({
     super.key,
     required this.trip,
     required this.onDeleteTrip,
+    required this.onUpdateTrip,
   });
+
+  @override
+  State<TripDetailScreen> createState() => _TripDetailScreenState();
+}
+
+class _TripDetailScreenState extends State<TripDetailScreen> {
+  late Trip _trip;
+
+  @override
+  void initState() {
+    super.initState();
+    _trip = widget.trip;
+  }
 
   void _showDeleteConfirmation(BuildContext context) {
     showDialog(
@@ -32,7 +48,7 @@ class TripDetailScreen extends StatelessWidget {
             TextButton(
               child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
               onPressed: () {
-                onDeleteTrip(trip.id);
+                widget.onDeleteTrip(_trip.id);
                 Navigator.of(context).pop(); // Close the dialog
                 Navigator.of(context).pop(); // Go back to the home screen
               },
@@ -43,28 +59,49 @@ class TripDetailScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _openEdit() async {
+    // Push AddTripScreen in 'edit' mode by passing the existing trip and a onUpdateTrip callback
+    final result = await Navigator.of(context).push<Trip>(
+      MaterialPageRoute(builder: (_) => AddTripScreen(
+        trip: _trip,
+        onAddTrip: (_) {}, // keep compatibility; not used in edit mode
+        onUpdateTrip: (updated) {}, // not used here; we'll catch result via pop
+      )),
+    );
+
+    // If the edit screen returned an updated Trip, update local state and propagate
+    if (result != null) {
+      setState(() {
+        _trip = result;
+      });
+      widget.onUpdateTrip(result);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(
         slivers: [
-          _Header(trip: trip, onDelete: () => _showDeleteConfirmation(context)),
+          _Header(trip: _trip, onDelete: () => _showDeleteConfirmation(context), onEdit: _openEdit),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _QuickInfo(trip: trip),
+                  _QuickInfo(trip: _trip),
                   const SizedBox(height: 16),
-                  if (trip.gpsCoordinates != null)
-                    _GpsCard(trip: trip),
+                  if (_trip.imageUrls.isNotEmpty) _PhotosCard(imageUrls: _trip.imageUrls),
                   const SizedBox(height: 16),
-                  _WeatherCard(trip: trip),
-                  if (trip.notes != null) ...[
+                  if (_trip.gpsCoordinates != null)
+                    _GpsCard(trip: _trip),
+                  const SizedBox(height: 16),
+                  _WeatherCard(trip: _trip),
+                  if (_trip.notes != null) ...[
                     const SizedBox(height: 16),
-                    _NotesCard(notes: trip.notes!),
+                    _NotesCard(notes: _trip.notes!),
                   ],
                   const SizedBox(height: 16),
                   const _PlaceInfoCard(),
@@ -82,39 +119,16 @@ class TripDetailScreen extends StatelessWidget {
 class _Header extends StatefulWidget {
   final Trip trip;
   final VoidCallback onDelete;
+  final VoidCallback? onEdit;
 
-  const _Header({required this.trip, required this.onDelete});
+  const _Header({required this.trip, required this.onDelete, this.onEdit});
 
   @override
   State<_Header> createState() => _HeaderState();
 }
 
 class _HeaderState extends State<_Header> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  Widget _buildImage(String url) {
-    if (url.startsWith('http')) {
-      return Image.network(url, fit: BoxFit.cover);
-    } else {
-      if (url.startsWith('data:image/')) {
-        try {
-          final bytes = base64Decode(url.split(',')[1]);
-          return Image.memory(bytes, fit: BoxFit.cover);
-        } catch (_) {
-          return _buildPlaceholder(context);
-        }
-      }
-      if (kIsWeb) return _buildPlaceholder(context);
-      return Image.file(File(url), fit: BoxFit.cover);
-    }
-  }
+  // PageView carousel removed: we only show a single cover image now.
 
   Widget _buildPlaceholder(BuildContext context) {
     return Container(
@@ -131,6 +145,22 @@ class _HeaderState extends State<_Header> {
 
   @override
   Widget build(BuildContext context) {
+    Widget imageWidget() {
+      final url = widget.trip.imageUrls.isNotEmpty ? widget.trip.imageUrls.first : '';
+      if (url.isEmpty) return _buildPlaceholder(context);
+      if (url.startsWith('http')) return Image.network(url, fit: BoxFit.cover);
+      if (url.startsWith('data:image/')) {
+        try {
+          final bytes = base64Decode(url.split(',')[1]);
+          return Image.memory(bytes, fit: BoxFit.cover);
+        } catch (_) {
+          return _buildPlaceholder(context);
+        }
+      }
+      if (kIsWeb) return _buildPlaceholder(context);
+      return Image.file(File(url), fit: BoxFit.cover);
+    }
+
     return SliverAppBar(
       expandedHeight: 320,
       pinned: true,
@@ -148,6 +178,12 @@ class _HeaderState extends State<_Header> {
           icon: const Icon(Icons.share, color: Colors.white),
           onPressed: () {},
         ),
+        // Edit button added
+        if (widget.onEdit != null)
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            onPressed: widget.onEdit,
+          ),
         IconButton(
           icon: const Icon(Icons.delete_outline, color: Colors.white),
           onPressed: widget.onDelete,
@@ -159,20 +195,7 @@ class _HeaderState extends State<_Header> {
           children: [
             Hero(
               tag: 'trip-${widget.trip.id}',
-              child: widget.trip.imageUrls.isNotEmpty
-                  ? PageView.builder(
-                      controller: _pageController,
-                      itemCount: widget.trip.imageUrls.length,
-                      itemBuilder: (context, index) {
-                        return _buildImage(widget.trip.imageUrls[index]);
-                      },
-                      onPageChanged: (index) {
-                        setState(() {
-                          _currentPage = index;
-                        });
-                      },
-                    )
-                  : _buildPlaceholder(context),
+              child: imageWidget(),
             ),
             Container(
               decoration: BoxDecoration(
@@ -184,27 +207,6 @@ class _HeaderState extends State<_Header> {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),
-              ),
-            ),
-            Positioned(
-              bottom: 80,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(widget.trip.imageUrls.length, (index) {
-                  return Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentPage == index
-                          ? Colors.white
-                          : Colors.white.withAlpha((0.5 * 255).round()),
-                    ),
-                  );
-                }),
               ),
             ),
             Positioned(
@@ -247,7 +249,6 @@ class _HeaderState extends State<_Header> {
     );
   }
 }
-
 
 
 class _Stars extends StatelessWidget {
@@ -294,7 +295,6 @@ class _WeatherBadge extends StatelessWidget {
     );
   }
 }
-
 
 class _QuickInfo extends StatelessWidget {
   final Trip trip;
@@ -424,7 +424,6 @@ class _GpsCard extends StatelessWidget {
 }
 
 
-
 class _WeatherCard extends StatelessWidget {
   final Trip trip;
 
@@ -476,7 +475,6 @@ class _WeatherCard extends StatelessWidget {
 }
 
 
-
 class _NotesCard extends StatelessWidget {
   final String notes;
 
@@ -513,7 +511,6 @@ class _NotesCard extends StatelessWidget {
 }
 
 
-
 class _PlaceInfoCard extends StatelessWidget {
   const _PlaceInfoCard();
 
@@ -546,6 +543,129 @@ class _PlaceInfoCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// New widget: shows thumbnails of trip images and opens full-screen viewer on tap
+class _PhotosCard extends StatelessWidget {
+  final List<String> imageUrls;
+
+  const _PhotosCard({required this.imageUrls});
+
+  Widget _buildThumb(BuildContext context, String url) {
+    Widget imgWidget;
+    if (url.startsWith('http')) {
+      imgWidget = Image.network(url, width: 120, height: 90, fit: BoxFit.cover);
+    } else if (url.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(url.split(',')[1]);
+        imgWidget = Image.memory(bytes, width: 120, height: 90, fit: BoxFit.cover);
+      } catch (_) {
+        imgWidget = Container(width: 120, height: 90, color: Colors.grey[300]);
+      }
+    } else {
+      if (kIsWeb) {
+        imgWidget = Container(width: 120, height: 90, color: Colors.grey[300]);
+      } else {
+        imgWidget = Image.file(File(url), width: 120, height: 90, fit: BoxFit.cover);
+      }
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: imgWidget,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Photos', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 100,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: imageUrls.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final url = imageUrls[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => _FullScreenPhotoViewer(images: imageUrls, initialIndex: index)));
+                    },
+                    child: _buildThumb(context, url),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Full screen viewer for trip images
+class _FullScreenPhotoViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenPhotoViewer({required this.images, this.initialIndex = 0});
+
+  @override
+  State<_FullScreenPhotoViewer> createState() => _FullScreenPhotoViewerState();
+}
+
+class _FullScreenPhotoViewerState extends State<_FullScreenPhotoViewer> {
+  late PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _buildImageWidget(String url) {
+    if (url.startsWith('http')) return InteractiveViewer(child: Image.network(url, fit: BoxFit.contain));
+    if (url.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(url.split(',')[1]);
+        return InteractiveViewer(child: Image.memory(bytes, fit: BoxFit.contain));
+      } catch (_) {
+        return const Center(child: Icon(Icons.broken_image, size: 48));
+      }
+    }
+    if (kIsWeb) return const Center(child: Icon(Icons.broken_image, size: 48));
+    return InteractiveViewer(child: Image.file(File(url), fit: BoxFit.contain));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.images.length,
+        itemBuilder: (context, i) {
+          return Center(child: _buildImageWidget(widget.images[i]));
+        },
       ),
     );
   }
