@@ -499,50 +499,6 @@ class _AddTripScreenState extends State<AddTripScreen> {
               _RatingSlider(rating: _rating, onChanged: (newRating) {
                 setState(() => _rating = newRating);
               }),
-              const SizedBox(height: 24),
-              // Quick weather selector for manual entries (emoji)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Météo (optionnel)', style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          // Define weather options with emoji + label
-                          {'label': 'Ensoleillé', 'emoji': '☀️'},
-                          {'label': 'Nuageux', 'emoji': '⛅'},
-                          {'label': 'Pluvieux', 'emoji': '🌧️'},
-                          {'label': 'Orageux', 'emoji': '🌩️'},
-                          {'label': 'Neige', 'emoji': '❄️'},
-                        ].map((opt) {
-                          final label = opt['label']!;
-                          final emoji = opt['emoji']!;
-                          return ChoiceChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(emoji, style: const TextStyle(fontSize: 18)),
-                                const SizedBox(width: 6),
-                                Text(label),
-                              ],
-                            ),
-                            selected: _selectedWeather == label,
-                            onSelected: (s) {
-                              setState(() {
-                                _selectedWeather = s ? label : '';
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
                const SizedBox(height: 16),
                SizedBox(
                  width: double.infinity,
