@@ -402,7 +402,14 @@ class _TripCard extends StatelessWidget {
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const Spacer(),
-                      Text("${trip.weather} ${trip.temperature}"),
+                      if (trip.weather.isNotEmpty)
+                        Row(
+                          children: [
+                            Text(_weatherEmoji(trip.weather), style: const TextStyle(fontSize: 18)),
+                            const SizedBox(width: 6),
+                            Text(trip.temperature),
+                          ],
+                        ),
                     ],
                   ),
                 ],
@@ -427,6 +434,16 @@ class _TripCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _weatherEmoji(String weather) {
+    final w = weather.toLowerCase();
+    if (w.contains('sun') || w.contains('ensoleil') || w.contains('soleil') || w.contains('☀')) return '☀️';
+    if (w.contains('cloud') || w.contains('nuage')) return '⛅';
+    if (w.contains('rain') || w.contains('pluie') || w.contains('pluv')) return '🌧️';
+    if (w.contains('storm') || w.contains('orage') || w.contains('⛈')) return '🌩️';
+    if (w.contains('snow') || w.contains('neige')) return '❄️';
+    return '🌤️';
   }
 }
 

@@ -41,6 +41,8 @@ class _AddTripScreenState extends State<AddTripScreen> {
   late DateTime _selectedDate;
   double _rating = 3.0;
   final ImagePicker _picker = ImagePicker();
+  // quick manual weather picker for trips created manually
+  String _selectedWeather = '';
   // store both original paths (when available) and processed bytes for display
   final List<String> _photoPaths = [];
   final List<Uint8List> _photoBytes = [];
@@ -227,18 +229,19 @@ class _AddTripScreenState extends State<AddTripScreen> {
       final savedLocation = _truncateForSave(_locationController.text.trim(), 100);
 
       final newTrip = Trip(
-        id: widget.trip?.id ?? DateTime.now().millisecondsSinceEpoch, // preserve id when editing
+        id: DateTime.now().millisecondsSinceEpoch, // Unique ID
         title: savedTitle,
         location: savedLocation,
         date: DateFormat('dd/MM/yyyy').format(_selectedDate),
         imageUrls: imageUrls,
         rating: _rating.toInt(),
-        weather: widget.place?.weather ?? widget.trip?.weather ?? "",
-        temperature: widget.place?.temperature?.toString() ?? widget.trip?.temperature ?? "",
+        // prefer explicit user selection, fallback to place data, else empty
+        weather: _selectedWeather.isNotEmpty ? _selectedWeather : (widget.place?.weather ?? ""),
+        temperature: widget.place?.temperature?.toString() ?? "",
         notes: _notesController.text,
         gpsCoordinates: _pickedPosition != null
             ? '${_pickedPosition!.latitude},${_pickedPosition!.longitude}'
-            : widget.trip?.gpsCoordinates,
+            : null,
       );
 
       if (widget.trip != null) {
@@ -268,7 +271,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
           lat: _pickedPosition!.latitude,
           lng: _pickedPosition!.longitude,
           photoUrl: widget.place?.photoUrl,
-          weather: widget.place?.weather,
+          weather: _selectedWeather.isNotEmpty ? _selectedWeather : widget.place?.weather,
           temperature: widget.place?.temperature,
         );
       }
@@ -296,6 +299,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
         _photoBytes.clear();
         _photoPaths.clear();
         _pickedPosition = null;
+        _selectedWeather = ''; // reset weather selection
       });
 
       if (Navigator.canPop(context)) {
@@ -483,13 +487,57 @@ class _AddTripScreenState extends State<AddTripScreen> {
                 setState(() => _rating = newRating);
               }),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _saveTrip,
-                  child: Text(widget.trip != null ? "Mettre à jour" : "Enregistrer"),
+              // Quick weather selector for manual entries (emoji)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Météo (optionnel)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          // Define weather options with emoji + label
+                          {'label': 'Ensoleillé', 'emoji': '☀️'},
+                          {'label': 'Nuageux', 'emoji': '⛅'},
+                          {'label': 'Pluvieux', 'emoji': '🌧️'},
+                          {'label': 'Orageux', 'emoji': '🌩️'},
+                          {'label': 'Neige', 'emoji': '❄️'},
+                        ].map((opt) {
+                          final label = opt['label']!;
+                          final emoji = opt['emoji']!;
+                          return ChoiceChip(
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(emoji, style: const TextStyle(fontSize: 18)),
+                                const SizedBox(width: 6),
+                                Text(label),
+                              ],
+                            ),
+                            selected: _selectedWeather == label,
+                            onSelected: (s) {
+                              setState(() {
+                                _selectedWeather = s ? label : '';
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
                 ),
-              )
+              ),
+               const SizedBox(height: 16),
+               SizedBox(
+                 width: double.infinity,
+                 child: ElevatedButton(
+                   onPressed: _saveTrip,
+                   child: Text(widget.trip != null ? "Mettre à jour" : "Enregistrer"),
+                 ),
+               )
             ],
           ),
         ),

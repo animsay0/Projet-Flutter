@@ -95,16 +95,14 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   const SizedBox(height: 16),
                   if (_trip.imageUrls.isNotEmpty) _PhotosCard(imageUrls: _trip.imageUrls),
                   const SizedBox(height: 16),
-                  if (_trip.gpsCoordinates != null)
-                    _GpsCard(trip: _trip),
-                  const SizedBox(height: 16),
-                  _WeatherCard(trip: _trip),
+                  // Weather card: only show if we have weather information
+                  if (_trip.weather.isNotEmpty) _WeatherCard(trip: _trip),
                   if (_trip.notes != null) ...[
                     const SizedBox(height: 16),
                     _NotesCard(notes: _trip.notes!),
                   ],
                   const SizedBox(height: 16),
-                  const _PlaceInfoCard(),
+                  // Place info removed
                 ],
               ),
             ),
@@ -234,10 +232,12 @@ class _HeaderState extends State<_Header> {
                         style: const TextStyle(color: Colors.white70),
                       ),
                       const Spacer(),
-                      _WeatherBadge(
-                        weather: widget.trip.weather,
-                        temperature: widget.trip.temperature,
-                      ),
+                      // Show weather badge only if we have weather info
+                      if (widget.trip.weather.isNotEmpty)
+                        _WeatherBadge(
+                          weather: widget.trip.weather,
+                          temperature: widget.trip.temperature,
+                        ),
                     ],
                   )
                 ],
@@ -374,56 +374,6 @@ class _InfoTile extends StatelessWidget {
 
 
 
-class _GpsCard extends StatelessWidget {
-  final Trip trip;
-
-  const _GpsCard({required this.trip});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 1,
-      child: SizedBox(
-        width: double.infinity,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 110),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  "Coordonnées GPS",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(trip.gpsCoordinates ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () {
-                      // plus tard → MapScreen
-                    },
-                    child: const Text("Voir sur la carte"),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
 class _WeatherCard extends StatelessWidget {
   final Trip trip;
 
@@ -510,43 +460,6 @@ class _NotesCard extends StatelessWidget {
   }
 }
 
-
-class _PlaceInfoCard extends StatelessWidget {
-  const _PlaceInfoCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: const Color(0xFFF5F3FF),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 1,
-      child: SizedBox(
-        width: double.infinity,
-        child: ConstrainedBox(
-          // harmoniser visuellement avec un minHeight mais autoriser l'expansion verticale
-          constraints: const BoxConstraints(minHeight: 110),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  "Informations du lieu",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text("Type : Site naturel"),
-                Text("Popularité : ★★★★★"),
-                Text("Avis : 3890+ avis"),
-                SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // New widget: shows thumbnails of trip images and opens full-screen viewer on tap
 class _PhotosCard extends StatelessWidget {
