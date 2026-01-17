@@ -93,6 +93,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 children: [
                   _QuickInfo(trip: _trip),
                   const SizedBox(height: 16),
+                  if (_trip.imageUrls.isNotEmpty) _PhotosCard(imageUrls: _trip.imageUrls),
+                  const SizedBox(height: 16),
                   if (_trip.gpsCoordinates != null)
                     _GpsCard(trip: _trip),
                   const SizedBox(height: 16),
@@ -126,31 +128,7 @@ class _Header extends StatefulWidget {
 }
 
 class _HeaderState extends State<_Header> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  Widget _buildImage(String url) {
-    if (url.startsWith('http')) {
-      return Image.network(url, fit: BoxFit.cover);
-    } else {
-      if (url.startsWith('data:image/')) {
-        try {
-          final bytes = base64Decode(url.split(',')[1]);
-          return Image.memory(bytes, fit: BoxFit.cover);
-        } catch (_) {
-          return _buildPlaceholder(context);
-        }
-      }
-      if (kIsWeb) return _buildPlaceholder(context);
-      return Image.file(File(url), fit: BoxFit.cover);
-    }
-  }
+  // PageView carousel removed: we only show a single cover image now.
 
   Widget _buildPlaceholder(BuildContext context) {
     return Container(
@@ -167,6 +145,22 @@ class _HeaderState extends State<_Header> {
 
   @override
   Widget build(BuildContext context) {
+    Widget imageWidget() {
+      final url = widget.trip.imageUrls.isNotEmpty ? widget.trip.imageUrls.first : '';
+      if (url.isEmpty) return _buildPlaceholder(context);
+      if (url.startsWith('http')) return Image.network(url, fit: BoxFit.cover);
+      if (url.startsWith('data:image/')) {
+        try {
+          final bytes = base64Decode(url.split(',')[1]);
+          return Image.memory(bytes, fit: BoxFit.cover);
+        } catch (_) {
+          return _buildPlaceholder(context);
+        }
+      }
+      if (kIsWeb) return _buildPlaceholder(context);
+      return Image.file(File(url), fit: BoxFit.cover);
+    }
+
     return SliverAppBar(
       expandedHeight: 320,
       pinned: true,
@@ -180,7 +174,11 @@ class _HeaderState extends State<_Header> {
           icon: const Icon(Icons.favorite_border, color: Colors.white),
           onPressed: () {},
         ),
-
+        IconButton(
+          icon: const Icon(Icons.share, color: Colors.white),
+          onPressed: () {},
+        ),
+        // Edit button added
         if (widget.onEdit != null)
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white),
@@ -197,20 +195,7 @@ class _HeaderState extends State<_Header> {
           children: [
             Hero(
               tag: 'trip-${widget.trip.id}',
-              child: widget.trip.imageUrls.isNotEmpty
-                  ? PageView.builder(
-                      controller: _pageController,
-                      itemCount: widget.trip.imageUrls.length,
-                      itemBuilder: (context, index) {
-                        return _buildImage(widget.trip.imageUrls[index]);
-                      },
-                      onPageChanged: (index) {
-                        setState(() {
-                          _currentPage = index;
-                        });
-                      },
-                    )
-                  : _buildPlaceholder(context),
+              child: imageWidget(),
             ),
             Container(
               decoration: BoxDecoration(
@@ -222,27 +207,6 @@ class _HeaderState extends State<_Header> {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),
-              ),
-            ),
-            Positioned(
-              bottom: 80,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(widget.trip.imageUrls.length, (index) {
-                  return Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentPage == index
-                          ? Colors.white
-                          : Colors.white.withAlpha((0.5 * 255).round()),
-                    ),
-                  );
-                }),
               ),
             ),
             Positioned(
@@ -579,6 +543,129 @@ class _PlaceInfoCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// New widget: shows thumbnails of trip images and opens full-screen viewer on tap
+class _PhotosCard extends StatelessWidget {
+  final List<String> imageUrls;
+
+  const _PhotosCard({required this.imageUrls});
+
+  Widget _buildThumb(BuildContext context, String url) {
+    Widget imgWidget;
+    if (url.startsWith('http')) {
+      imgWidget = Image.network(url, width: 120, height: 90, fit: BoxFit.cover);
+    } else if (url.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(url.split(',')[1]);
+        imgWidget = Image.memory(bytes, width: 120, height: 90, fit: BoxFit.cover);
+      } catch (_) {
+        imgWidget = Container(width: 120, height: 90, color: Colors.grey[300]);
+      }
+    } else {
+      if (kIsWeb) {
+        imgWidget = Container(width: 120, height: 90, color: Colors.grey[300]);
+      } else {
+        imgWidget = Image.file(File(url), width: 120, height: 90, fit: BoxFit.cover);
+      }
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: imgWidget,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Photos', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 100,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: imageUrls.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final url = imageUrls[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => _FullScreenPhotoViewer(images: imageUrls, initialIndex: index)));
+                    },
+                    child: _buildThumb(context, url),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Full screen viewer for trip images
+class _FullScreenPhotoViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenPhotoViewer({required this.images, this.initialIndex = 0});
+
+  @override
+  State<_FullScreenPhotoViewer> createState() => _FullScreenPhotoViewerState();
+}
+
+class _FullScreenPhotoViewerState extends State<_FullScreenPhotoViewer> {
+  late PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _buildImageWidget(String url) {
+    if (url.startsWith('http')) return InteractiveViewer(child: Image.network(url, fit: BoxFit.contain));
+    if (url.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(url.split(',')[1]);
+        return InteractiveViewer(child: Image.memory(bytes, fit: BoxFit.contain));
+      } catch (_) {
+        return const Center(child: Icon(Icons.broken_image, size: 48));
+      }
+    }
+    if (kIsWeb) return const Center(child: Icon(Icons.broken_image, size: 48));
+    return InteractiveViewer(child: Image.file(File(url), fit: BoxFit.contain));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.images.length,
+        itemBuilder: (context, i) {
+          return Center(child: _buildImageWidget(widget.images[i]));
+        },
       ),
     );
   }
